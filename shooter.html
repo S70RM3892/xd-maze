@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>XD Shooter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,600&family=DM+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: the view fills the screen. Score strip on top, radar top-right,
+   move stick bottom-left, fire button bottom-right, drag anywhere else to look.
+   One deliberate look (overexposed pastel dream), so no dark variant.
+   Warm always means "toward ana", cool means "toward kata". */
+:root {
+  --ink: #3a2c58; --ink-soft: #6d5f8c; --haze: #f6e9f6; --glass: rgba(255, 255, 255, 0.62); --edge: rgba(58, 44, 88, 0.3);
+  --warm: #e8355f; --cool: #1f78e0;
+  --display: "Cormorant Garamond", "Times New Roman", serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--haze); color: var(--ink); font: 14px/1.5 var(--body);
+  display: flex; flex-direction: column; gap: 8px; padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+  touch-action: none; overflow: hidden;
+}
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; image-rendering: pixelated; }
+#cross { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px var(--ink); pointer-events: none; transition: transform 0.12s; }
+#cross.on { border-color: var(--ink); background: rgba(255,255,255,0.5); }
+#cross.kick { transform: scale(1.7); }
+.bar, .mid, .controls { position: relative; z-index: 1; pointer-events: none; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+h1 { font: italic 600 26px/1 var(--display); margin: 0; text-shadow: 0 0 12px #fff; }
+.pill { background: var(--glass); border: 1px solid var(--edge); border-radius: 999px; padding: 5px 12px; font: 400 13px var(--mono);
+  font-variant-numeric: tabular-nums; color: var(--ink-soft); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.pill b { color: var(--ink); font-weight: 500; }
+.legend { margin-left: auto; font-size: 12px; }
+.legend i { font-style: normal; font-weight: 700; }
+.legend .w { color: var(--warm); } .legend .c { color: var(--cool); }
+.mid { flex: 1 1 0; min-height: 0; display: flex; justify-content: space-between; align-items: flex-start; }
+#caption { font: italic 600 34px/1.1 var(--display); color: #fff; text-shadow: 0 0 14px var(--ink), 0 0 3px var(--ink); opacity: 0; margin: 8px 0 0; }
+#caption.go { animation: cap 2.2s ease-out; }
+@keyframes cap { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+#radar { width: min(30vw, 150px); aspect-ratio: 1; max-width: 100%; border-radius: 50%; background: var(--glass); border: 1px solid var(--edge); }
+.controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+#stick { width: 136px; height: 136px; border-radius: 50%; background: var(--glass); border: 2px solid var(--edge); position: relative; pointer-events: auto; touch-action: none; }
+#knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: var(--ink); opacity: 0.8; }
+#fire { width: 104px; height: 104px; border-radius: 50%; border: 3px solid var(--ink); background: var(--glass); color: var(--ink);
+  font: 700 16px var(--body); pointer-events: auto; touch-action: none; }
+#fire:active, #fire.held { background: var(--ink); color: #fff; }
+.btn { font: 700 16px var(--body); color: #fff; background: var(--ink); border: 0; border-radius: 999px; min-height: 48px; padding: 0 28px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.sheet { position: fixed; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(255, 244, 252, 0.72); overflow: auto; }
+.card { max-width: 520px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.card h2 { font: italic 600 48px/1 var(--display); margin: 0; text-wrap: balance; }
+.card p, .card ul { margin: 0; }
+.card ul { padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.card .w { color: var(--warm); font-weight: 700; } .card .c { color: var(--cool); font-weight: 700; }
+.card small { font: 400 13px var(--mono); color: var(--ink-soft); }
+@media (max-width: 520px) { #stick { width: 116px; height: 116px; } #fire { width: 88px; height: 88px; } .legend { margin-left: 0; } .card h2 { font-size: 38px; } }
+@media (max-height: 460px) { .card h2 { font-size: 30px; } .card { gap: 6px; font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) { #caption.go { animation-duration: 0.01s; } #cross { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="cross"></div>
+
+<div class="bar">
+  <h1>XD Shooter</h1>
+  <span class="pill">撃破 <b id="score">0</b></span>
+  <span class="pill">波 <b id="wave">1</b></span>
+  <span class="pill">体力 <b id="hp">●●●●●</b></span>
+  <span class="pill legend"><i class="w">赤い影</i> 上へドラッグ / <i class="c">青い影</i> 下へドラッグ</span>
+</div>
+<div class="mid">
+  <p id="caption"></p>
+  <canvas id="radar" width="300" height="300" aria-label="レーダー"></canvas>
+</div>
+<div class="controls">
+  <div id="stick" aria-label="移動"><div id="knob"></div></div>
+  <button id="fire" type="button">撃つ</button>
+</div>
+
+<div class="sheet" id="title">
+  <div class="card">
+    <h2>XD Shooter</h2>
+    <p>ここは 4 次元。前後・左右・上下のほかに、もう 1 つ向ける方向がある。画面はその方向を色で見せる。</p>
+    <ul>
+      <li>ふつうの色に見えるものは、いま真正面の向きにある。</li>
+      <li><span class="w">赤い影</span>は 4 つ目の方向の片側にある。画面を<b>上へ</b>ドラッグすると正面に回ってくる。</li>
+      <li><span class="c">青い影</span>は反対側。<b>下へ</b>ドラッグ。</li>
+      <li>左右のドラッグはふつうに左右を向く。左下の丸で歩く。</li>
+      <li>目玉が白くはっきり見えて、照準の中に入ったら撃つ。</li>
+    </ul>
+    <button class="btn" id="start" type="button">はじめる</button>
+    <small>キーボード: WASD 移動 / ←→ 左右 / ↑↓ 4つ目の方向 / スペース 撃つ</small>
+  </div>
+</div>
+<div class="sheet" id="over" hidden>
+  <div class="card">
+    <h2>目が覚めた</h2>
+    <small id="overText"></small>
+    <button class="btn" id="again" type="button">もう一度眠る</button>
+  </div>
+</div>
+
+<script src="core.js"></script>
+<script id="vs" type="x-shader/x-vertex">#version 300 es
+void main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }
+</script>
+<script id="fs" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+// The eye of a 4D being has a 3D retina: left-right, up-down, and ana-kata.
+// A flat screen has room for two, so the third retinal axis is folded into color:
+// the middle layer is drawn as-is, layers toward ana are overlaid as warm outlines and ghosts, kata as cool ones.
+uniform sampler2D uRays;   // W x 7: wall depth and wall axis for every screen column and every ana-kata layer
+uniform vec2 uRes;
+uniform vec3 uPos, uF, uR, uA;
+uniform float uTan, uTime, uHurt, uShot;
+uniform vec4 uEn[8];       // floor position (3 numbers) and height
+uniform int uN;
+out vec4 o;
+const float W = 320.0, VS = 0.22, TOP = 0.9, BOT = -0.5, ER = 0.3;
+const vec3 WARM = vec3(1.0, 0.25, 0.42), COOL = vec3(0.15, 0.5, 1.0), FOG = vec3(0.98, 0.87, 0.95);
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
+
+vec3 view(vec3 d, float t, float ax, float yv) {
+  float h = yv * t; vec3 c;
+  if (h < TOP && h > BOT) {            // wall: sky wallpaper, tinted by which way the wall faces
+    vec3 p = uPos + d * t;
+    vec3 base = ax < 0.5 ? vec3(1.0, 0.76, 0.87) : ax < 1.5 ? vec3(0.72, 0.85, 1.0) : vec3(0.78, 0.96, 0.85);
+    vec2 q = ax < 0.5 ? p.yz : ax < 1.5 ? p.xz : p.xy;
+    float hh = (h - BOT) / (TOP - BOT);
+    float cl = smoothstep(0.5, 0.72, fbm(vec2(q.x + q.y * 1.7, hh * 1.5) * 2.2));
+    c = mix(base * (0.8 + 0.2 * hh), vec3(1.0), cl * 0.75);
+    if (hh < 0.06) c = vec3(1.0);
+    vec2 e = abs(fract(q) - 0.5); if (max(e.x, e.y) > 0.485) c *= 0.82;
+    c = mix(FOG, c, exp(-t * 0.1));
+  } else if (yv < 0.0) {               // floor: checker tiles in all three floor directions
+    float tf = BOT / yv; vec3 g = floor((uPos + d * tf) * 2.0);
+    c = mix(vec3(1.0, 0.98, 0.99), vec3(0.95, 0.6, 0.81), mod(g.x + g.y + g.z, 2.0));
+    c = mix(FOG, c, exp(-tf * 0.1));
+  } else {                             // open sky
+    vec3 P = uPos * 0.05 + d * (3.0 / yv);
+    float cl = smoothstep(0.45, 0.75, fbm(vec2(P.x + P.z * 0.6, P.y - P.z * 0.8) * 0.2 + uTime * 0.01));
+    c = mix(mix(vec3(0.62, 0.78, 1.0), vec3(0.42, 0.6, 1.0), clamp(yv, 0.0, 1.0)), vec3(1.0, 0.97, 0.99), cl);
+    c = mix(FOG, c, 1.0 - exp(-yv * 5.0));
+  }
+  return c;
+}
+
+// nearest eye along a 4D ray (3 floor directions + height), in front of the wall at depth tw
+bool eye(vec3 d, float yv, float tw, out vec3 col) {
+  vec4 D = vec4(d, yv); float A = dot(D, D), best = tw; bool hit = false;
+  for (int j = 0; j < 8; j++) {
+    if (j >= uN) break;
+    vec4 oc = vec4(uPos, 0.0) - uEn[j];
+    float B = dot(oc, D), C = dot(oc, oc) - ER * ER, disc = B * B - A * C;
+    if (disc > 0.0) {
+      float te = (-B - sqrt(disc)) / A;
+      if (te > 0.02 && te < best) {
+        best = te; hit = true;
+        float k = dot((oc + D * te) / ER, normalize(oc));   // 1 at the point that looks straight at you
+        col = k > 0.94 ? vec3(0.08, 0.05, 0.15) : k > 0.8 ? vec3(0.3, 0.72, 0.9) : vec3(1.0, 0.98, 0.96) * (0.72 + 0.28 * k);
+      }
+    }
+  }
+  return hit;
+}
+
+// outline of one layer: top and bottom of its walls, and the columns where its depth jumps
+float lines(int col, int row, float yv, float px) {
+  vec4 a = texelFetch(uRays, ivec2(col, row), 0), b = texelFetch(uRays, ivec2(min(col + 1, 319), row), 0);
+  if (abs(yv - TOP / a.x) < px || abs(yv - BOT / a.x) < px) return 1.0;
+  float tn = min(a.x, b.x);
+  return ((abs(a.x - b.x) > 0.12 * tn + 0.05 || a.y != b.y) && yv * tn < TOP && yv * tn > BOT) ? 1.0 : 0.0;
+}
+
+void main() {
+  vec2 ndc = gl_FragCoord.xy / uRes * 2.0 - 1.0;
+  int col = int(clamp(gl_FragCoord.x / uRes.x * W, 0.0, W - 1.0));
+  float u = ((float(col) + 0.5) / W * 2.0 - 1.0) * uTan, yv = ndc.y * uTan * uRes.y / uRes.x;
+  vec4 r0 = texelFetch(uRays, ivec2(col, 3), 0);
+  vec3 d0 = uF + u * uR;
+  vec3 c = view(d0, r0.x, r0.y, yv), ec;
+  float px = 2.4 * uTan / uRes.x;
+  c = mix(c, vec3(0.23, 0.17, 0.35), 0.5 * lines(col, 3, yv, px));
+  for (int s = 3; s >= 1; s--) for (int sg = -1; sg <= 1; sg += 2) {
+    vec4 ri = texelFetch(uRays, ivec2(col, 3 + s * sg), 0);
+    vec3 tint = sg > 0 ? WARM : COOL;
+    // the other layers are drawn as tinted outlines over the middle one, plus a faint glow where they are more open
+    bool bi = yv * ri.x < TOP && yv * ri.x > BOT;
+    c = mix(c, mix(tint, vec3(1.0), 0.35), (s == 1 ? 0.2 : s == 2 ? 0.14 : 0.09) * smoothstep(0.3, 2.0, ri.x - r0.x) * (bi ? 1.0 : 0.0));
+    c = mix(c, tint, (s == 1 ? 0.85 : s == 2 ? 0.6 : 0.4) * lines(col, 3 + s * sg, yv, px));
+    if (eye(d0 + float(s * sg) * VS * uA, yv, ri.x, ec)) c = mix(c, mix(tint, ec, 0.35), s == 1 ? 0.7 : s == 2 ? 0.5 : 0.34);
+  }
+  if (eye(d0, yv, r0.x, ec)) c = ec;
+  float rad = length(ndc);
+  c = mix(c, vec3(1.0, 0.96, 0.99), smoothstep(0.75, 1.5, rad) * 0.55);
+  c = mix(c, vec3(1.0, 0.15, 0.3), uHurt * (0.15 + 0.4 * rad));
+  c += uShot * 0.6 * smoothstep(0.3, 0.0, length(ndc * vec2(uRes.x / uRes.y, 1.0)));
+  c += (hash(gl_FragCoord.xy + fract(uTime) * 91.0) - 0.5) * 0.07;
+  o = vec4(c, 1.0);
+}
+</script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const W = 320, K = 7, VS = 0.22, ER = 0.3, CELLS = 3, N = CELLS * 3 + 1; // floor space is a 3D grid of N^3 blocks
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cv = $('gl'), gl = cv.getContext('webgl2', { antialias: false });
+  if (!gl) { $('title').querySelector('p').textContent = 'このブラウザは WebGL2 に対応していないので遊べない。'; $('start').hidden = true; return; }
+
+  // ---- level: a 3D maze of wide corridors with extra openings, as the floor plan of a 4D space
+  let vox, dist = new Int16Array(N * N * N), distFrom = -1;
+  const vi = (x, y, z) => x + y * N + z * N * N;
+  const solid = (x, y, z) => x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N || vox[vi(x, y, z)] === 1;
+  function makeLevel(seed) {
+    const maze = createMaze([CELLS, CELLS, CELLS], seed, 'wilson'), rnd = mulberry32(seed ^ 0x9e3779b9);
+    const extra = new Uint8Array(maze.total * 3);
+    for (let i = 0; i < extra.length; i++) extra[i] = rnd() < 0.3 ? 1 : 0;
+    vox = new Uint8Array(N * N * N).fill(1);
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const p = [x, y, z], onWall = p.filter((v) => v % 3 === 0);
+      if (onWall.length === 0) { vox[vi(x, y, z)] = 0; continue; }
+      if (onWall.length > 1) continue;
+      const k = p.findIndex((v) => v % 3 === 0), c = p[k] / 3 - 1;
+      if (c < 0 || c >= CELLS - 1) continue;
+      const cell = p.map((v, j) => (j === k ? c : Math.floor((v - 1) / 3)));
+      const ci = cell[0] + cell[1] * CELLS + cell[2] * CELLS * CELLS;
+      if (maze.canMove(ci, k, 1) || extra[ci * 3 + k]) vox[vi(x, y, z)] = 0;
+    }
+  }
+  function flood(px, py, pz) { // steps to the player from every open block, for the eyes to follow
+    const src = vi(px, py, pz);
+    if (src === distFrom) return;
+    distFrom = src; dist.fill(-1); dist[src] = 0;
+    const q = [src];
+    for (let h = 0; h < q.length; h++) {
+      const c = q[h], x = c % N, y = Math.floor(c / N) % N, z = Math.floor(c / (N * N));
+      for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+        if (solid(x + dx, y + dy, z + dz)) continue;
+        const nb = vi(x + dx, y + dy, z + dz);
+        if (dist[nb] < 0) { dist[nb] = dist[c] + 1; q.push(nb); }
+      }
+    }
+  }
+  let hitAxis = 0;
+  function cast(o, dx, dy, dz) { // grid walk; returns depth along the unnormalised direction
+    let ix = Math.floor(o[0]), iy = Math.floor(o[1]), iz = Math.floor(o[2]), t = 0;
+    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+    const ax = dx ? Math.abs(1 / dx) : 1e30, ay = dy ? Math.abs(1 / dy) : 1e30, az = dz ? Math.abs(1 / dz) : 1e30;
+    let mx = dx ? (dx > 0 ? ix + 1 - o[0] : o[0] - ix) * ax : 1e30, my = dy ? (dy > 0 ? iy + 1 - o[1] : o[1] - iy) * ay : 1e30, mz = dz ? (dz > 0 ? iz + 1 - o[2] : o[2] - iz) * az : 1e30;
+    for (let i = 0; i < 64; i++) {
+      if (mx < my && mx < mz) { ix += sx; t = mx; mx += ax; hitAxis = 0; } else if (my < mz) { iy += sy; t = my; my += ay; hitAxis = 1; } else { iz += sz; t = mz; mz += az; hitAxis = 2; }
+      if (solid(ix, iy, iz)) return t;
+    }
+    return t;
+  }
+
+  // ---- GL
+  function shader(type, id) {
+    const s = gl.createShader(type); gl.shaderSource(s, $(id).textContent.trim()); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, shader(gl.VERTEX_SHADER, 'vs')); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, 'fs')); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const U = {};
+  for (const n of ['uRays', 'uRes', 'uPos', 'uF', 'uR', 'uA', 'uTan', 'uTime', 'uHurt', 'uShot', 'uEn', 'uN']) U[n] = gl.getUniformLocation(prog, n);
+  const rays = new Float32Array(W * K * 4), enBuf = new Float32Array(32);
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindVertexArray(gl.createVertexArray());
+  let tanH = 1;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight, q = 0.5 * Math.min(window.devicePixelRatio || 1, 2); // deliberately low resolution
+    cv.width = Math.max(2, Math.round(w * q)); cv.height = Math.max(2, Math.round(h * q));
+    gl.viewport(0, 0, cv.width, cv.height);
+    tanH = w >= h ? 1 : 0.7;
+  }
+
+  // ---- state
+  const P = { pos: [2, 2, 2], f: [1, 0, 0], r: [0, 1, 0], a: [0, 0, 1] };
+  let mode = 'title', enemies = [], score = 0, wave = 1, hp = 5, toSpawn = 0, spawnT = 0, fireT = 0, hurt = 0, shot = 0, rnd = Math.random, firing = false;
+  const move = [0, 0], keys = {};
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  function rot(a, b, ang) { // rotate the pair of frame vectors a,b in their own plane
+    const c = Math.cos(ang), s = Math.sin(ang);
+    for (let i = 0; i < 3; i++) { const x = a[i], y = b[i]; a[i] = x * c + y * s; b[i] = y * c - x * s; }
+  }
+  function tidy() { // keep the three frame vectors unit length and at right angles
+    const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]); for (let i = 0; i < 3; i++) v[i] /= l; };
+    const sub = (v, w) => { const d = dot(v, w); for (let i = 0; i < 3; i++) v[i] -= d * w[i]; };
+    norm(P.f); sub(P.r, P.f); norm(P.r); sub(P.a, P.f); sub(P.a, P.r); norm(P.a);
+  }
+  const look = (yaw, ana) => { rot(P.f, P.r, yaw); rot(P.f, P.a, ana); tidy(); };
+  function free(x, y, z) {
+    const r = 0.22;
+    for (const dx of [-r, r]) for (const dy of [-r, r]) for (const dz of [-r, r]) if (solid(Math.floor(x + dx), Math.floor(y + dy), Math.floor(z + dz))) return false;
+    return true;
+  }
+  function say(text) { const c = $('caption'); c.textContent = text; c.classList.remove('go'); void c.offsetWidth; c.classList.add('go'); }
+  function hud() { $('score').textContent = score; $('wave').textContent = wave; $('hp').textContent = '●'.repeat(Math.max(0, hp)) + '○'.repeat(5 - Math.max(0, hp)); }
+
+  let audio = null;
+  function beep(freq, dur, type, vol) {
+    if (!audio) return;
+    try {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, audio.currentTime); o.frequency.exponentialRampToValueAtTime(freq * 0.5, audio.currentTime + dur);
+      g.gain.setValueAtTime(vol, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + dur);
+      o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+    } catch (e) {}
+  }
+
+  function newGame() {
+    makeLevel((Math.random() * 4294967296) >>> 0);
+    P.pos = [2, 2, 2];
+    const ax = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], far = ax.map((d) => cast(P.pos, d[0], d[1], d[2])), k = far.indexOf(Math.max(...far)); // face the longest view
+    P.f = ax[k].slice(); P.r = ax[(k + 1) % 3].slice(); P.a = ax[(k + 2) % 3].slice();
+    enemies = []; score = 0; wave = 1; hp = 5; hurt = 0; distFrom = -1;
+    startWave(); hud();
+  }
+  function startWave() { toSpawn = 2 + wave * 2; spawnT = 1; say('第 ' + wave + ' 波'); }
+  function spawn() {
+    let bestI = -1, bestD = -1;
+    for (let tries = 0; tries < 60; tries++) {
+      const i = Math.floor(rnd() * dist.length);
+      if (dist[i] > bestD) { bestD = dist[i]; bestI = i; if (bestD >= 9) break; }
+    }
+    if (bestI < 0) return;
+    enemies.push({ p: [bestI % N + 0.5, Math.floor(bestI / N) % N + 0.5, Math.floor(bestI / (N * N)) + 0.5], ph: rnd() * 6.28 });
+  }
+  // nearest eye on the middle ray; only that ray can hit, so you must turn in the fourth direction too
+  function aimed(slack) {
+    const wall = cast(P.pos, P.f[0], P.f[1], P.f[2]);
+    let best = wall, who = -1;
+    enemies.forEach((e, j) => {
+      const oc = [P.pos[0] - e.p[0], P.pos[1] - e.p[1], P.pos[2] - e.p[2]], B = dot(oc, P.f), R = ER * slack;
+      const disc = B * B - (dot(oc, oc) + e.h * e.h - R * R);
+      if (disc > 0) { const t = -B - Math.sqrt(disc); if (t > 0 && t < best) { best = t; who = j; } }
+    });
+    return who;
+  }
+  function fire() {
+    fireT = 0.24; shot = 1; beep(620, 0.09, 'square', 0.05);
+    $('cross').classList.add('kick'); setTimeout(() => $('cross').classList.remove('kick'), 90);
+    const who = aimed(1.3);
+    if (who >= 0) { enemies.splice(who, 1); score++; beep(240, 0.25, 'sine', 0.12); hud(); }
+  }
+
+  function update(dt, now) {
+    if (mode !== 'play') { if (!calm) look(dt * 0.12, Math.sin(now / 4000) * dt * 0.25); return; }
+    const kx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0), ky = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
+    look(((keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0)) * dt * 1.8, ((keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0)) * dt * 1.5);
+    let sx = move[0] + kx, sy = move[1] + ky; const l = Math.hypot(sx, sy); if (l > 1) { sx /= l; sy /= l; }
+    for (let i = 0; i < 3; i++) { // slide along walls, one floor direction at a time
+      const q = P.pos.slice(); q[i] += (P.f[i] * sy + P.r[i] * sx) * 2.6 * dt;
+      if (free(q[0], q[1], q[2])) P.pos = q;
+    }
+    flood(Math.floor(P.pos[0]), Math.floor(P.pos[1]), Math.floor(P.pos[2]));
+    spawnT -= dt;
+    if (toSpawn > 0 && spawnT <= 0 && enemies.length < 8) { spawn(); toSpawn--; spawnT = 1.4; }
+    if (toSpawn === 0 && enemies.length === 0) { wave++; startWave(); hud(); }
+    const speed = 0.8 + wave * 0.07;
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j], x = Math.floor(e.p[0]), y = Math.floor(e.p[1]), z = Math.floor(e.p[2]), here = dist[vi(x, y, z)];
+      let tgt = P.pos;
+      if (here > 1) for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+        if (!solid(x + dx, y + dy, z + dz) && dist[vi(x + dx, y + dy, z + dz)] === here - 1) { tgt = [x + dx + 0.5, y + dy + 0.5, z + dz + 0.5]; break; }
+      }
+      const v = [tgt[0] - e.p[0], tgt[1] - e.p[1], tgt[2] - e.p[2]], len = Math.hypot(v[0], v[1], v[2]) || 1;
+      for (let i = 0; i < 3; i++) e.p[i] += v[i] / len * Math.min(len, speed * dt);
+      e.h = Math.sin(now / 600 + e.ph) * 0.07;
+      if (Math.hypot(e.p[0] - P.pos[0], e.p[1] - P.pos[1], e.p[2] - P.pos[2]) < 0.5) {
+        enemies.splice(j, 1); hp--; hurt = 1; beep(110, 0.4, 'sawtooth', 0.1); hud();
+        if (hp <= 0) { mode = 'over'; $('over').hidden = false; $('overText').textContent = '撃破 ' + score + ' / 第 ' + wave + ' 波まで'; }
+      }
+    }
+    fireT -= dt;
+    if (firing && fireT <= 0) fire();
+    $('cross').classList.toggle('on', aimed(1.3) >= 0);
+  }
+
+  function render(now) {
+    for (let col = 0; col < W; col++) {
+      const u = ((col + 0.5) / W * 2 - 1) * tanH;
+      for (let i = 0; i < K; i++) {
+        const v = (i - 3) * VS, o = (i * W + col) * 4;
+        rays[o] = cast(P.pos, P.f[0] + u * P.r[0] + v * P.a[0], P.f[1] + u * P.r[1] + v * P.a[1], P.f[2] + u * P.r[2] + v * P.a[2]);
+        rays[o + 1] = hitAxis;
+      }
+    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, W, K, 0, gl.RGBA, gl.FLOAT, rays);
+    const n = Math.min(8, enemies.length);
+    for (let j = 0; j < n; j++) { enBuf[j * 4] = enemies[j].p[0]; enBuf[j * 4 + 1] = enemies[j].p[1]; enBuf[j * 4 + 2] = enemies[j].p[2]; enBuf[j * 4 + 3] = enemies[j].h || 0; }
+    gl.uniform1i(U.uRays, 0); gl.uniform2f(U.uRes, cv.width, cv.height);
+    gl.uniform3fv(U.uPos, P.pos); gl.uniform3fv(U.uF, P.f); gl.uniform3fv(U.uR, P.r); gl.uniform3fv(U.uA, P.a);
+    gl.uniform1f(U.uTan, tanH); gl.uniform1f(U.uTime, now / 1000); gl.uniform1f(U.uHurt, hurt); gl.uniform1f(U.uShot, shot);
+    gl.uniform4fv(U.uEn, enBuf); gl.uniform1i(U.uN, n);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  function radar() { // you are the centre, up is ahead; dot color says which way to turn in the fourth direction
+    const c = $('radar'), g = c.getContext('2d'), S = c.width, R = S / 2 - 8, range = 8;
+    g.clearRect(0, 0, S, S);
+    g.strokeStyle = 'rgba(58,44,88,0.35)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(S / 2, S / 2, R * 0.5, 0, 6.3); g.moveTo(S / 2, S / 2); g.lineTo(S / 2 - R * 0.7, S / 2 - R * 0.7); g.moveTo(S / 2, S / 2); g.lineTo(S / 2 + R * 0.7, S / 2 - R * 0.7); g.stroke();
+    for (const e of enemies) {
+      const d = [e.p[0] - P.pos[0], e.p[1] - P.pos[1], e.p[2] - P.pos[2]];
+      let x = dot(d, P.r) / range, y = -dot(d, P.f) / range; const w = dot(d, P.a), l = Math.hypot(x, y);
+      if (l > 1) { x /= l; y /= l; }
+      const k = Math.min(1, Math.abs(w) / 2), mix = (a, b) => Math.round(a + (b - a) * k);
+      g.fillStyle = w > 0 ? `rgb(${mix(255, 232)},${mix(255, 53)},${mix(255, 95)})` : `rgb(${mix(255, 31)},${mix(255, 120)},${mix(255, 224)})`;
+      g.strokeStyle = '#3a2c58'; g.lineWidth = 2;
+      g.beginPath(); g.arc(S / 2 + x * R, S / 2 + y * R, 9, 0, 6.3); g.fill(); g.stroke();
+    }
+    g.fillStyle = '#3a2c58'; g.beginPath(); g.moveTo(S / 2, S / 2 - 12); g.lineTo(S / 2 + 9, S / 2 + 9); g.lineTo(S / 2 - 9, S / 2 + 9); g.closePath(); g.fill();
+  }
+  let last = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now;
+    update(dt, now);
+    hurt = Math.max(0, hurt - dt * 2); shot = Math.max(0, shot - dt * 8);
+    render(now); radar();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- input
+  let lookId = null, lx = 0, ly = 0;
+  cv.addEventListener('pointerdown', (ev) => { if (lookId === null) { lookId = ev.pointerId; lx = ev.clientX; ly = ev.clientY; cv.setPointerCapture(ev.pointerId); } });
+  cv.addEventListener('pointermove', (ev) => {
+    if (ev.pointerId !== lookId || mode !== 'play') return;
+    look((ev.clientX - lx) * 0.005, (ly - ev.clientY) * 0.005); lx = ev.clientX; ly = ev.clientY; // right = turn right, up = turn toward ana (warm)
+  });
+  const endLook = (ev) => { if (ev.pointerId === lookId) lookId = null; };
+  cv.addEventListener('pointerup', endLook); cv.addEventListener('pointercancel', endLook);
+  const stick = $('stick'), knob = $('knob'); let stickId = null;
+  function stickMove(ev) {
+    const rc = stick.getBoundingClientRect(), R = rc.width / 2 - 20;
+    let x = (ev.clientX - rc.left - rc.width / 2) / R, y = (ev.clientY - rc.top - rc.height / 2) / R; const l = Math.hypot(x, y);
+    if (l > 1) { x /= l; y /= l; }
+    move[0] = x; move[1] = -y; knob.style.transform = `translate(${x * R}px, ${y * R}px)`;
+  }
+  stick.addEventListener('pointerdown', (ev) => { stickId = ev.pointerId; stick.setPointerCapture(ev.pointerId); stickMove(ev); });
+  stick.addEventListener('pointermove', (ev) => { if (ev.pointerId === stickId) stickMove(ev); });
+  const endStick = (ev) => { if (ev.pointerId === stickId) { stickId = null; move[0] = move[1] = 0; knob.style.transform = ''; } };
+  stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick);
+  const fb = $('fire');
+  const setFire = (on) => { firing = on; fb.classList.toggle('held', on); };
+  fb.addEventListener('pointerdown', (ev) => { fb.setPointerCapture(ev.pointerId); setFire(true); });
+  fb.addEventListener('pointerup', () => setFire(false)); fb.addEventListener('pointercancel', () => setFire(false));
+  fb.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  window.addEventListener('keydown', (ev) => {
+    const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
+    if (k === ' ') { if (mode === 'play') { firing = true; ev.preventDefault(); } return; }
+    if (mode === 'play' && /^(Arrow|[wasd]$)/.test(k)) { keys[k] = true; ev.preventDefault(); }
+  });
+  window.addEventListener('keyup', (ev) => { const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key; if (k === ' ') firing = false; else keys[k] = false; });
+  function begin() {
+    try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    $('title').hidden = true; $('over').hidden = true; newGame(); mode = 'play';
+  }
+  $('start').addEventListener('click', begin); $('again').addEventListener('click', begin);
+  window.addEventListener('resize', resize);
+
+  makeLevel(20261114); resize(); hud();
+  window.__xd = { P, get enemies() { return enemies; }, get mode() { return mode; }, get score() { return score; }, look, aimed, fire };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
