@@ -1,11 +1,10 @@
-// Checks the maze core in index.html: every maze must be a spanning tree
+// Checks the maze core in core.js: every maze must be a spanning tree
 // (cells - 1 passages, all cells reachable) in 2 to 6 dimensions.
 // Run: node test.mjs
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert';
 
-const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-const core = html.match(/<script id="core">([\s\S]*?)<\/script>/)[1];
+const core = readFileSync(new URL("./core.js", import.meta.url), "utf8");
 const { createMaze, shortestPath } = new Function(core + '; return { createMaze, shortestPath };')();
 
 let count = 0;

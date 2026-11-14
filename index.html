@@ -5,89 +5,89 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>XD Maze</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,600&family=DM+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <style>
-/* Layout: one-screen app. Top bar (settings + readout), the maze fills the middle,
-   two thumb pads sit in the bottom corners. Each extra axis owns one color everywhere. */
+/* Layout: the first-person view fills the screen. Glass controls float over it:
+   settings on top, walking pad bottom-left, one row of buttons per extra axis bottom-right.
+   One deliberate look (overexposed pastel dream), so no dark variant. */
 :root {
-  --bg: #e9edf3; --surface: #f8fafc; --line: #c5cdd9; --fg: #18202f; --muted: #5a6577;
-  --trail: #d5e2f7; --player: #1f5fe0; --goal: #c48f00;
-  --ax2: #0a857c; --ax3: #c0334d; --ax4: #7446cf; --ax5: #5f8210;
-  --display: "Space Grotesk", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --body: "Inter", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #10141c; --surface: #1a202c; --line: #343d4f; --fg: #e4e9f1; --muted: #98a3b6;
-    --trail: #233352; --player: #72a2ff; --goal: #ffd04a;
-    --ax2: #40cfc3; --ax3: #ff8497; --ax4: #b99ef7; --ax5: #b4d458;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #10141c; --surface: #1a202c; --line: #343d4f; --fg: #e4e9f1; --muted: #98a3b6;
-  --trail: #233352; --player: #72a2ff; --goal: #ffd04a;
-  --ax2: #40cfc3; --ax3: #ff8497; --ax4: #b99ef7; --ax5: #b4d458;
-  color-scheme: dark;
+  --ink: #3a2c58; --ink-soft: #6d5f8c; --haze: #f6e9f6; --glass: rgba(255, 255, 255, 0.62); --edge: rgba(58, 44, 88, 0.28);
+  --ax2: #d18a00; --ax3: #d93a8c; --ax4: #2a7fd6; --ax5: #1f9a5c; --hint: #3a2c58;
+  --display: "Cormorant Garamond", "Times New Roman", serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
 }
 html, body { height: 100%; }
 [hidden] { display: none !important; }
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: var(--bg); color: var(--fg);
-  font: 14px/1.4 var(--body);
-  display: flex; flex-direction: column; gap: 8px;
-  padding-block: 10px;
+  margin: 0; background: var(--haze); color: var(--ink); font: 14px/1.4 var(--body);
+  display: flex; flex-direction: column; gap: 8px; padding-block: 10px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
   touch-action: manipulation; overflow: hidden;
 }
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-h1 { font: 600 20px/1 var(--display); margin: 0; letter-spacing: -0.01em; }
-.bar label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+#gl, #grain, #vig, #flash { position: fixed; inset: 0; width: 100%; height: 100%; }
+#gl { display: block; filter: saturate(1.2) contrast(1.02); touch-action: none; }
+#grain, #vig, #flash { pointer-events: none; }
+#grain { opacity: 0.2; mix-blend-mode: multiply; }
+#vig { background: radial-gradient(ellipse at center, rgba(255,255,255,0) 55%, rgba(255,246,252,0.5) 100%); }
+#flash { background: #fff; opacity: 0; }
+#flash.go { animation: flash 0.7s ease-out; }
+@keyframes flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.bar, .mid, .controls { position: relative; z-index: 1; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+h1 { font: italic 600 26px/1 var(--display); margin: 0 4px 0 0; text-shadow: 0 0 12px #fff; }
+.bar label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink); text-shadow: 0 0 6px #fff; }
 select, .btn {
-  font: 500 14px var(--body); color: var(--fg); background: var(--surface);
-  border: 1px solid var(--line); border-radius: 6px; min-height: 36px; padding: 0 10px;
+  font: 500 14px var(--body); color: var(--ink); background: var(--glass);
+  border: 1px solid var(--edge); border-radius: 999px; min-height: 36px; padding: 0 12px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
-.btn[aria-pressed="true"] { background: var(--player); border-color: var(--player); color: var(--bg); }
-:focus-visible { outline: 2px solid var(--player); outline-offset: 2px; }
-.readout { margin-left: auto; display: flex; gap: 14px; font: 400 13px var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
-.readout b { color: var(--fg); font-weight: 600; }
-.help { margin: 0; color: var(--muted); font-size: 12px; }
-.stage { position: relative; flex: 1 1 0; min-height: 120px; }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.win {
-  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  background: color-mix(in srgb, var(--bg) 86%, transparent); text-align: center;
-}
-.win p { margin: 0; font: 600 22px var(--display); }
-.win small { font: 400 14px var(--mono); color: var(--muted); }
-.win div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; }
-.pad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
-.pad span { display: grid; place-items: center; font: 600 12px var(--mono); color: var(--muted); }
-.extra { display: grid; grid-template-columns: repeat(2, 60px); gap: 4px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: #fff; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.readout { margin-left: auto; display: flex; gap: 12px; font: 400 13px var(--mono); font-variant-numeric: tabular-nums;
+  background: var(--glass); border-radius: 999px; padding: 6px 12px; color: var(--ink-soft); }
+.readout b { color: var(--ink); font-weight: 500; }
+.mid { flex: 1 1 0; min-height: 0; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+#caption { font: italic 600 30px/1.1 var(--display); color: #fff; text-shadow: 0 0 14px var(--ink), 0 0 3px var(--ink); opacity: 0; margin: 8px 0 0; }
+#caption.go { animation: cap 2.4s ease-out; }
+@keyframes cap { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+#map { width: min(34vw, 170px); aspect-ratio: 1; max-width: 100%; border-radius: 10px; background: var(--glass); border: 1px solid var(--edge); }
+.controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.pad { display: grid; grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: 6px; }
+.axes { display: grid; grid-template-columns: repeat(2, 68px); grid-auto-rows: 50px; gap: 6px; }
 .mv {
-  --c: var(--fg);
-  font: 600 18px var(--mono); color: var(--c); background: var(--surface);
-  border: 2px solid var(--c); border-radius: 8px; min-height: 52px; padding: 0;
+  --c: var(--ink);
+  font: 500 17px var(--mono); color: var(--c); line-height: 1; background: var(--glass);
+  border: 2px solid var(--c); border-radius: 16px; padding: 0;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
-.mv:disabled { opacity: 0.22; }
-.mv.next { background: var(--c); color: var(--bg); }
+  .pad .mv { font-size: 26px; }
+.mv:disabled { opacity: 0.25; }
+.mv.next { background: var(--c); color: #fff; box-shadow: 0 0 18px #fff; }
 .mv[data-axis="2"] { --c: var(--ax2); } .mv[data-axis="3"] { --c: var(--ax3); }
 .mv[data-axis="4"] { --c: var(--ax4); } .mv[data-axis="5"] { --c: var(--ax5); }
+.win { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(255, 244, 252, 0.8); text-align: center; padding: 16px; }
+.win p { margin: 0; font: italic 600 44px/1.1 var(--display); text-wrap: balance; }
+.win small { font: 400 14px var(--mono); color: var(--ink-soft); }
+.win div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 520px) {
-  .controls { flex-wrap: nowrap; }
-  .pad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); }
-  .extra { grid-template-columns: repeat(2, 44px); }
-  .mv { min-height: 40px; font-size: 15px; }
+  .pad { grid-template-columns: repeat(3, 48px); grid-auto-rows: 48px; }
+  .axes { grid-template-columns: repeat(2, 56px); grid-auto-rows: 42px; }
+  .mv { font-size: 15px; }
 }
-@media (max-height: 520px) { .pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); } .mv { min-height: 44px; } .help { display: none; } }
+@media (max-height: 460px) { .axes { grid-auto-rows: 38px; } .pad { grid-auto-rows: 46px; } }
+@media (prefers-reduced-motion: reduce) { #flash.go, #caption.go { animation-duration: 0.01s; } }
 </style>
 </head>
 <body>
+<canvas id="gl"></canvas>
+<div id="grain"></div><div id="vig"></div><div id="flash"></div>
+
 <div class="bar">
   <h1>XD Maze</h1>
   <label for="dim">次元<select id="dim"></select></label>
@@ -96,125 +96,205 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   <button class="btn" id="new" type="button">新しい迷路</button>
   <button class="btn" id="restart" type="button">最初から</button>
   <button class="btn" id="hint" type="button" aria-pressed="false">ヒント</button>
+  <button class="btn" id="mapBtn" type="button" aria-pressed="true">地図</button>
   <div class="readout"><span>位置 <b id="coord"></b></span><span>手数 <b id="steps">0</b></span><span>最短 <b id="best">0</b></span></div>
 </div>
-<p class="help" id="help"></p>
-<div class="stage" id="stage">
-  <canvas id="cv"></canvas>
-  <div class="win" id="win" hidden>
-    <p>ゴール</p>
-    <small id="winText"></small>
-    <div><button class="btn" id="winNew" type="button">次の迷路</button><button class="btn" id="winAgain" type="button">同じ迷路をもう一度</button></div>
-  </div>
+<div class="mid">
+  <p id="caption"></p>
+  <canvas id="map" width="340" height="340"></canvas>
 </div>
 <div class="controls">
-  <div class="pad" id="padA">
-    <span></span><button class="mv" id="m1n" type="button" data-axis="1" data-sign="-1" aria-label="y−">↑</button><span></span>
-    <button class="mv" id="m0n" type="button" data-axis="0" data-sign="-1" aria-label="x−">←</button><span>x y</span><button class="mv" id="m0p" type="button" data-axis="0" data-sign="1" aria-label="x+">→</button>
-    <span></span><button class="mv" id="m1p" type="button" data-axis="1" data-sign="1" aria-label="y+">↓</button><span></span>
+  <div class="pad">
+    <button class="mv" id="tl" type="button" data-act="l" aria-label="左を向く">↰</button>
+    <button class="mv" id="fw" type="button" data-act="f" aria-label="前へ進む">↑</button>
+    <button class="mv" id="tr" type="button" data-act="r" aria-label="右を向く">↱</button>
+    <span></span>
+    <button class="mv" id="bk" type="button" data-act="b" aria-label="後ろへ下がる">↓</button>
   </div>
-  <div class="extra" id="extra">
+  <div class="axes">
+    <button class="mv" id="m2n" type="button" data-axis="2" data-sign="-1" aria-label="下の階へ">z−</button><button class="mv" id="m2p" type="button" data-axis="2" data-sign="1" aria-label="上の階へ">z+</button>
+    <button class="mv" id="m3n" type="button" data-axis="3" data-sign="-1">w−</button><button class="mv" id="m3p" type="button" data-axis="3" data-sign="1">w+</button>
     <button class="mv" id="m4n" type="button" data-axis="4" data-sign="-1">v−</button><button class="mv" id="m4p" type="button" data-axis="4" data-sign="1">v+</button>
     <button class="mv" id="m5n" type="button" data-axis="5" data-sign="-1">u−</button><button class="mv" id="m5p" type="button" data-axis="5" data-sign="1">u+</button>
   </div>
-  <div class="pad" id="padB">
-    <span></span><button class="mv" id="m3n" type="button" data-axis="3" data-sign="-1" aria-label="w−">↑</button><span></span>
-    <button class="mv" id="m2n" type="button" data-axis="2" data-sign="-1" aria-label="z−">←</button><span id="padBLabel">z w</span><button class="mv" id="m2p" type="button" data-axis="2" data-sign="1" aria-label="z+">→</button>
-    <span></span><button class="mv" id="m3p" type="button" data-axis="3" data-sign="1" aria-label="w+">↓</button><span></span>
-  </div>
+</div>
+<div class="win" id="win" hidden>
+  <p>おかえりなさい</p>
+  <small id="winText"></small>
+  <div><button class="btn" id="winNew" type="button">次の迷路</button><button class="btn" id="winAgain" type="button">同じ迷路をもう一度</button></div>
 </div>
 
-<script id="core">
-// Dimension-independent core. A maze is a spanning tree of the N-dimensional grid graph.
-// open[i] bit k set = passage between cell i and the next cell along axis k.
-function mulberry32(a) {
-  return function () {
-    a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function createMaze(sizes, seed, algo) {
-  const n = sizes.length, stride = [];
-  let total = 1;
-  for (let k = 0; k < n; k++) { stride.push(total); total *= sizes[k]; }
-  const open = new Uint8Array(total), rnd = mulberry32(seed);
-  const coord = (i, k) => Math.floor(i / stride[k]) % sizes[k];
-  const inGrid = (i, k, s) => { const c = coord(i, k) + s; return c >= 0 && c < sizes[k]; };
-  const canMove = (i, k, s) => inGrid(i, k, s) && (open[s > 0 ? i : i - stride[k]] >> k & 1) === 1;
-  const carve = (i, k, s) => { open[s > 0 ? i : i - stride[k]] |= 1 << k; };
-  const m = { n, sizes, stride, total, open, coord, canMove };
-  const seen = new Uint8Array(total);
-
-  if (algo === 'wilson') {
-    // Loop-erased random walks: samples uniformly from all spanning trees.
-    const dir = new Uint8Array(total);
-    seen[Math.floor(rnd() * total)] = 1;
-    for (let start = 0; start < total; start++) {
-      let c = start;
-      while (!seen[c]) {
-        let d;
-        do { d = Math.floor(rnd() * 2 * n); } while (!inGrid(c, d >> 1, d & 1 ? 1 : -1));
-        dir[c] = d;
-        c += (d & 1 ? 1 : -1) * stride[d >> 1];
-      }
-      c = start;
-      while (!seen[c]) {
-        const d = dir[c], k = d >> 1, s = d & 1 ? 1 : -1;
-        seen[c] = 1; carve(c, k, s); c += s * stride[k];
-      }
-    }
-  } else {
-    // Randomized depth-first search with an explicit stack.
-    const stack = [0], opts = [];
-    seen[0] = 1;
-    while (stack.length) {
-      const c = stack[stack.length - 1];
-      opts.length = 0;
-      for (let d = 0; d < 2 * n; d++) {
-        const k = d >> 1, s = d & 1 ? 1 : -1;
-        if (inGrid(c, k, s) && !seen[c + s * stride[k]]) opts.push(d);
-      }
-      if (!opts.length) { stack.pop(); continue; }
-      const d = opts[Math.floor(rnd() * opts.length)], k = d >> 1, s = d & 1 ? 1 : -1;
-      carve(c, k, s); seen[c + s * stride[k]] = 1; stack.push(c + s * stride[k]);
-    }
-  }
-  return m;
-}
-// Breadth-first search. Returns the list of cells from `from` to `to`, both included.
-function shortestPath(m, from, to) {
-  const prev = new Int32Array(m.total).fill(-1), queue = [from];
-  prev[from] = from;
-  for (let h = 0; h < queue.length; h++) {
-    const c = queue[h];
-    if (c === to) break;
-    for (let k = 0; k < m.n; k++) for (const s of [-1, 1]) {
-      const nb = c + s * m.stride[k];
-      if (m.canMove(c, k, s) && prev[nb] < 0) { prev[nb] = c; queue.push(nb); }
-    }
-  }
-  if (prev[to] < 0) return null;
-  const path = [to];
-  while (path[path.length - 1] !== from) path.push(prev[path[path.length - 1]]);
-  return path.reverse();
-}
-</script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="core.js"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
+  const MAX_SIZE = { 2: 12, 3: 6, 4: 5, 5: 4, 6: 3 };
+  const AX = [0, 0, '#d18a00', '#d93a8c', '#2a7fd6', '#1f9a5c'];
   const NAMES = ['x', 'y', 'z', 'w', 'v', 'u'];
-  const MAX_SIZE = { 2: 16, 3: 8, 4: 6, 5: 4, 6: 3 };
-  const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const moveButtons = [...document.querySelectorAll('.mv')];
   let cfg = { n: 4, s: 4, algo: 'dfs', seed: 0 };
-  let maze, pos, goal, steps, visited, best, hint = false, path = null, geo = null;
+  let maze, pos, goal, steps, visited, best, face = 0, hint = false, showMap = true;
+  let base = -1, world = null, cellSprites = new Map(), hiddenCell = -1;
 
   try { Object.assign(cfg, JSON.parse(localStorage.getItem('xdmaze') || '{}')); } catch (e) {}
   if (!MAX_SIZE[cfg.n]) cfg.n = 4;
 
+  // ---- textures, drawn in code so the page needs no image files
+  function tex(size, paint, repeat) {
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    paint(c.getContext('2d'), size);
+    const t = new THREE.CanvasTexture(c);
+    if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+  const rand = mulberry32(7);
+  const wallTex = tex(256, (g, S) => { // sky wallpaper with clouds and a white skirting board
+    const sky = g.createLinearGradient(0, 0, 0, S);
+    sky.addColorStop(0, '#7db7ff'); sky.addColorStop(0.75, '#d9ecff'); sky.addColorStop(1, '#fff3fb');
+    g.fillStyle = sky; g.fillRect(0, 0, S, S);
+    for (let c = 0; c < 9; c++) {
+      const cx = rand() * S, cy = 30 + rand() * S * 0.6;
+      for (let p = 0; p < 7; p++) {
+        const x = cx + (rand() - 0.5) * 70, y = cy + (rand() - 0.5) * 16, r = 14 + rand() * 20;
+        for (const ox of [-S, 0, S]) {
+          const gr = g.createRadialGradient(x + ox, y, 0, x + ox, y, r);
+          gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+          g.fillStyle = gr; g.fillRect(x + ox - r, y - r, r * 2, r * 2);
+        }
+      }
+    }
+    g.fillStyle = '#ffffff'; g.fillRect(0, S - 18, S, 18);
+    g.fillStyle = 'rgba(70,50,130,0.6)'; g.fillRect(0, S - 21, S, 3);
+    g.fillStyle = 'rgba(70,50,130,0.5)'; g.fillRect(0, 0, 4, S); g.fillRect(S - 4, 0, 4, S); g.fillRect(0, 0, S, 5);
+  }, true);
+  const floorTex = tex(128, (g, S) => { // soft checker tiles
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#ee9fd0' : '#fffafd'; g.fillRect(x * S / 2, y * S / 2, S / 2, S / 2); }
+    g.strokeStyle = 'rgba(90,70,140,0.18)'; g.lineWidth = 2; g.strokeRect(0, 0, S, S);
+  }, true);
+  const ceilTex = tex(128, (g, S) => { // a pale ceiling with one glowing panel
+    g.fillStyle = '#efe6ff'; g.fillRect(0, 0, S, S);
+    const gr = g.createRadialGradient(S / 2, S / 2, 4, S / 2, S / 2, S * 0.5);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.5, 'rgba(255,255,230,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  }, true);
+  const glowTex = tex(64, (g, S) => {
+    const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  });
+  const doorTex = tex(128, (g, S) => { // the exit: a door of light
+    const gr = g.createRadialGradient(S / 2, S / 2, 6, S / 2, S / 2, S / 2);
+    gr.addColorStop(0, 'rgba(255,250,200,1)'); gr.addColorStop(0.6, 'rgba(255,220,120,0.5)'); gr.addColorStop(1, 'rgba(255,220,120,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    g.fillStyle = '#ffffff'; g.fillRect(S * 0.36, S * 0.18, S * 0.28, S * 0.64);
+    g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(S * 0.58, S * 0.52, 3, 0, 6.3); g.fill();
+  });
+  $('grain').style.backgroundImage = 'url(' + (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), d = g.createImageData(128, 128);
+    for (let i = 0; i < d.data.length; i += 4) { const v = 150 + Math.random() * 105; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    g.putImageData(d, 0, 0); return c.toDataURL();
+  })() + ')';
+
+  // ---- scene
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: false }); }
+  catch (e) { $('caption').textContent = 'このブラウザでは 3D 表示(WebGL)が使えない。'; $('caption').style.opacity = 1; return; }
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(84, 1, 0.03, 40);
+  scene.fog = new THREE.Fog(0xffffff, 1.2, 8);
+  const mat = (map) => new THREE.MeshBasicMaterial({ map, vertexColors: true });
+  const wallMat = mat(wallTex), floorMat = mat(floorTex), ceilMat = mat(ceilTex);
+  const spriteMat = AX.map((c) => c ? new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, depthWrite: false }) : null);
+  const doorMat = new THREE.SpriteMaterial({ map: doorTex, transparent: true, depthWrite: false, fog: false });
+  const beamGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 8, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({ color: AX[2], transparent: true, opacity: 0.6, depthWrite: false });
+
+  function quads() { // collects quads; the normal u × v must point into the room
+    const p = [], uv = [], col = [], idx = [];
+    return {
+      add(o, u, v, shade) {
+        const b = p.length / 3;
+        p.push(o[0], o[1], o[2], o[0] + u[0], o[1] + u[1], o[2] + u[2], o[0] + u[0] + v[0], o[1] + u[1] + v[1], o[2] + u[2] + v[2], o[0] + v[0], o[1] + v[1], o[2] + v[2]);
+        uv.push(0, 0, 1, 0, 1, 1, 0, 1);
+        for (let i = 0; i < 4; i++) col.push(shade, shade, shade);
+        idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      },
+      mesh(material) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        g.setIndex(idx);
+        return new THREE.Mesh(g, material);
+      },
+    };
+  }
+
+  // The view shows one 3D slice: x,y are the floor plan, z is height. w,v,u pick which slice.
+  function buildSlice() {
+    const n = cfg.n, s = cfg.s, st = maze.stride, cm = maze.canMove;
+    if (world) { scene.remove(world); world.traverse((o) => { if (o.isMesh && o.geometry !== beamGeo) o.geometry.dispose(); }); }
+    world = new THREE.Group(); cellSprites = new Map(); hiddenCell = -1;
+    base = 0;
+    for (let k = 3; k < n; k++) base += maze.coord(pos, k) * st[k];
+    const W = quads(), F = quads(), C = quads(), levels = n >= 3 ? s : 1;
+    for (let zl = 0; zl < levels; zl++) for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+      const i = base + x + y * st[1] + (n >= 3 ? zl * st[2] : 0), X = x, Y = zl, Z = y;
+      if (!cm(i, 0, 1)) W.add([X + 0.5, Y - 0.5, Z - 0.5], [0, 0, 1], [0, 1, 0], 1);
+      if (!cm(i, 0, -1)) W.add([X - 0.5, Y - 0.5, Z + 0.5], [0, 0, -1], [0, 1, 0], 1);
+      if (!cm(i, 1, 1)) W.add([X + 0.5, Y - 0.5, Z + 0.5], [-1, 0, 0], [0, 1, 0], 0.8);
+      if (!cm(i, 1, -1)) W.add([X - 0.5, Y - 0.5, Z - 0.5], [1, 0, 0], [0, 1, 0], 0.8);
+      if (!(n >= 3 && cm(i, 2, -1))) F.add([X - 0.5, Y - 0.5, Z + 0.5], [1, 0, 0], [0, 0, -1], 1);
+      if (!(n >= 3 && cm(i, 2, 1))) C.add([X - 0.5, Y + 0.5, Z - 0.5], [1, 0, 0], [0, 0, 1], 1);
+      else { const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(X, Y + 0.5, Z); world.add(beam); }
+      // lights for the other axes: high = plus, low = minus, one color per axis
+      const OFF = [0, 0, 0, [-0.26, -0.26], [0.26, -0.26], [0, 0.3]];
+      for (let k = 3; k < n; k++) for (const sg of [-1, 1]) if (cm(i, k, sg)) {
+        const sp = new THREE.Sprite(spriteMat[k]);
+        sp.position.set(X + OFF[k][0], Y + sg * 0.24, Z + OFF[k][1]); sp.scale.set(0.3, 0.3, 1);
+        world.add(sp);
+        if (!cellSprites.has(i)) cellSprites.set(i, []);
+        cellSprites.get(i).push(sp);
+      }
+    }
+    world.add(W.mesh(wallMat), F.mesh(floorMat), C.mesh(ceilMat));
+    if (goal - base < (n >= 4 ? st[3] : maze.total)) {
+      const door = new THREE.Sprite(doorMat);
+      door.position.set(maze.coord(goal, 0), n >= 3 ? maze.coord(goal, 2) : 0, maze.coord(goal, 1)); door.scale.set(0.95, 0.95, 1);
+      world.add(door);
+    }
+    scene.add(world);
+    // every slice has its own light
+    const c = (k) => (k < n ? maze.coord(pos, k) : 0);
+    const hue = ((318 + 67 * c(3) + 131 * c(4) + 29 * c(5)) % 360) / 360;
+    scene.fog.color.setHSL(hue, 0.8, 0.84); renderer.setClearColor(scene.fog.color);
+    wallMat.color.setHSL(hue, 0.9, 0.93); ceilMat.color.setHSL(hue, 0.9, 0.95); floorMat.color.setHSL((hue + 0.08) % 1, 0.9, 0.93);
+  }
+
+  // ---- camera: glides between cell centres
+  const cam = { x: 0, y: 0, z: 0, yaw: 0 }, from = { x: 0, y: 0, z: 0, yaw: 0 };
+  let t0 = -1e9;
+  const DUR = 190;
+  const target = () => ({ x: maze.coord(pos, 0), y: cfg.n >= 3 ? maze.coord(pos, 2) : 0, z: maze.coord(pos, 1), yaw: face * Math.PI / 2 });
+  function glide(snap) { Object.assign(from, snap ? target() : cam); t0 = snap ? -1e9 : performance.now(); }
+  function frame(now) {
+    const to = target(), k = Math.min(1, (now - t0) / DUR), e = k * k * (3 - 2 * k);
+    for (const key of ['x', 'y', 'z', 'yaw']) cam[key] = from[key] + (to[key] - from[key]) * e;
+    const sway = calm ? 0 : Math.sin(now / 1900) * 0.025, bob = calm ? 0 : Math.sin(now / 1300) * 0.012;
+    const ex = cam.x - Math.cos(cam.yaw) * 0.36, ez = cam.z - Math.sin(cam.yaw) * 0.36;
+    camera.position.set(ex, cam.y + bob, ez);
+    camera.lookAt(ex + Math.cos(cam.yaw + sway), cam.y + bob, ez + Math.sin(cam.yaw + sway));
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight, q = 0.55 * Math.min(window.devicePixelRatio || 1, 2); // deliberately low resolution
+    renderer.setSize(Math.max(2, Math.round(w * q)), Math.max(2, Math.round(h * q)), false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+
+  // ---- game state
   function fillSelects() {
     $('dim').innerHTML = [2, 3, 4, 5, 6].map((d) => `<option value="${d}">${d}次元</option>`).join('');
     $('dim').value = cfg.n;
@@ -223,7 +303,6 @@ function shortestPath(m, from, to) {
     for (let s = 2; s <= MAX_SIZE[cfg.n]; s++) h += `<option value="${s}">${s}</option>`;
     $('size').innerHTML = h; $('size').value = cfg.s; $('algo').value = cfg.algo;
   }
-
   function build(newSeed, saved) {
     if (newSeed) cfg.seed = (Math.random() * 4294967296) >>> 0;
     try { localStorage.setItem('xdmaze', JSON.stringify({ n: cfg.n, s: cfg.s, algo: cfg.algo })); } catch (e) {}
@@ -231,28 +310,31 @@ function shortestPath(m, from, to) {
     goal = maze.total - 1;
     best = shortestPath(maze, 0, goal).length - 1;
     visited = new Uint8Array(maze.total);
-    pos = 0; steps = 0;
-    if (saved && saved.pos < maze.total) { pos = saved.pos; steps = saved.steps; (saved.trail || []).forEach((i) => { visited[i] = 1; }); }
+    pos = 0; steps = 0; face = 0;
+    if (saved && saved.pos < maze.total) { pos = saved.pos; steps = saved.steps; face = saved.face || 0; (saved.trail || []).forEach((i) => { visited[i] = 1; }); }
     visited[pos] = 1;
-    $('padB').hidden = cfg.n < 3;
-    $('m3n').hidden = $('m3p').hidden = cfg.n < 4;
-    $('padBLabel').textContent = cfg.n < 4 ? 'z' : 'z w';
-    $('extra').hidden = cfg.n < 5;
-    $('m5n').hidden = $('m5p').hidden = cfg.n < 6;
-    $('help').textContent = cfg.n < 3 ? '青い丸を金色のゴールまで動かす。'
-      : '盤面は' + (cfg.n > 3 ? ' z(横)と w(縦)' : ' z ') + 'の方向に並んでいる。マスの中の色つきの印は、その方向の隣の盤面の同じマスへ行けるという意味。'
-        + (cfg.n > 4 ? ' v' + (cfg.n > 5 ? '・u' : '') + ' は今いる層だけを表示している。' : '');
-    refresh();
+    if (!saved || saved.face === undefined) for (let d = 3; d >= 0; d--) if (maze.canMove(0, d & 1, d < 2 ? 1 : -1)) face = d; // start facing an open way
+    for (const b of moveButtons) if (b.dataset.axis) b.hidden = +b.dataset.axis >= cfg.n;
+    buildSlice(); glide(true); refresh();
   }
-
+  const dirOf = () => ((face % 4) + 4) % 4; // 0:+x 1:+y 2:-x 3:-y
   function refresh() {
-    path = hint ? shortestPath(maze, pos, goal) : null;
-    const next = path && path.length > 1 ? path[1] - pos : 0;
-    for (const b of moveButtons) {
-      const k = +b.dataset.axis, s = +b.dataset.sign;
-      b.disabled = k >= cfg.n || !maze.canMove(pos, k, s);
-      b.classList.toggle('next', next !== 0 && k < cfg.n && next === s * maze.stride[k]);
+    const d = dirOf(), fk = d & 1, fs = d < 2 ? 1 : -1;
+    const path = hint ? shortestPath(maze, pos, goal) : null;
+    let want = '';
+    if (path && path.length > 1) {
+      const delta = path[1] - pos;
+      for (let k = 0; k < cfg.n; k++) for (const sg of [-1, 1]) if (delta === sg * maze.stride[k]) {
+        want = k < 2 ? ['f', 'r', 'b', 'l'][((k + (sg > 0 ? 0 : 2)) - d + 4) % 4] : k + ':' + sg;
+      }
     }
+    for (const b of moveButtons) {
+      const act = b.dataset.act;
+      if (act) { b.disabled = act === 'f' ? !maze.canMove(pos, fk, fs) : act === 'b' ? !maze.canMove(pos, fk, -fs) : false; b.classList.toggle('next', want === act); }
+      else { b.disabled = !maze.canMove(pos, +b.dataset.axis, +b.dataset.sign); b.classList.toggle('next', want === b.dataset.axis + ':' + b.dataset.sign); }
+    }
+    if (hiddenCell >= 0) (cellSprites.get(hiddenCell) || []).forEach((sp) => { sp.visible = true; });
+    (cellSprites.get(pos) || []).forEach((sp) => { sp.visible = false; }); hiddenCell = pos; // lights in your own cell would block the view
     const c = [];
     for (let k = 0; k < cfg.n; k++) c.push(maze.coord(pos, k));
     $('coord').textContent = '(' + c.join(',') + ')';
@@ -260,107 +342,72 @@ function shortestPath(m, from, to) {
     const won = pos === goal;
     $('win').hidden = !won;
     if (won) $('winText').textContent = steps + ' 手で到達(最短 ' + best + ' 手)';
-    draw();
+    drawMap();
   }
-
-  function move(k, s) {
-    if (pos === goal || k >= cfg.n || !maze.canMove(pos, k, s)) return;
-    pos += s * maze.stride[k]; steps++; visited[pos] = 1;
+  function step(k, sg) {
+    if (pos === goal || k >= cfg.n || !maze.canMove(pos, k, sg)) return;
+    pos += sg * maze.stride[k]; steps++; visited[pos] = 1;
+    if (k >= 3) { // another slice of the same place
+      buildSlice(); glide(true);
+      for (const [el, cls] of [[$('flash'), 'go'], [$('caption'), 'go']]) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+      $('caption').textContent = NAMES[k] + ' = ' + maze.coord(pos, k);
+    } else glide(false);
     refresh();
   }
+  function act(a) {
+    const d = dirOf(), k = d & 1, sg = d < 2 ? 1 : -1;
+    if (a === 'f') step(k, sg); else if (a === 'b') step(k, -sg);
+    else { face += a === 'r' ? 1 : -1; glide(false); refresh(); }
+  }
 
-  // ---- drawing: a grid of 2D boards. x,y inside a board; z,w choose the board; v,u fixed at the player's layer.
-  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  function draw() {
-    const dpr = window.devicePixelRatio || 1, W = stage.clientWidth, H = stage.clientHeight;
-    if (!W || !H || !maze) return;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    const n = cfg.n, s = cfg.s, st = maze.stride;
-    const tx = n >= 3 ? s : 1, ty = n >= 4 ? s : 1, GAP = 0.7;
-    const ml = n >= 4 ? 34 : 2, mt = n >= 3 ? 20 : 2;
-    const cell = Math.max(4, Math.floor(Math.min((W - ml - 2) / (tx * s + (tx - 1) * GAP), (H - mt - 2) / (ty * s + (ty - 1) * GAP))));
-    const pitch = (s + GAP) * cell;
-    const ox = ml + Math.floor((W - ml - (tx * s + (tx - 1) * GAP) * cell) / 2);
-    const oy = mt + Math.floor((H - mt - (ty * s + (ty - 1) * GAP) * cell) / 2);
-    let base = 0;
-    for (let k = 4; k < n; k++) base += maze.coord(pos, k) * st[k];
-    geo = { cell, pitch, ox, oy, tx, ty, base };
-    const C = { fg: css('--fg'), surface: css('--surface'), trail: css('--trail'), player: css('--player'), goal: css('--goal'), muted: css('--muted'),
-      ax: [0, 0, css('--ax2'), css('--ax3'), css('--ax4'), css('--ax5')] };
-    const wallW = Math.max(1.5, cell * 0.09), r = cell * 0.17;
-    const onPath = new Set(path || []);
-    const center = (i) => {
-      const bx = ox + (n >= 3 ? maze.coord(i, 2) : 0) * pitch, by = oy + (n >= 4 ? maze.coord(i, 3) : 0) * pitch;
-      return [bx + (maze.coord(i, 0) + 0.5) * cell, by + (maze.coord(i, 1) + 0.5) * cell];
-    };
-    const tri = (cx, cy, dx, dy, col) => { // small arrowhead pointing (dx,dy)
-      ctx.fillStyle = col; ctx.beginPath();
-      ctx.moveTo(cx + dx * r, cy + dy * r);
-      ctx.lineTo(cx - dx * r * 0.5 + dy * r * 0.8, cy - dy * r * 0.5 + dx * r * 0.8);
-      ctx.lineTo(cx - dx * r * 0.5 - dy * r * 0.8, cy - dy * r * 0.5 - dx * r * 0.8);
-      ctx.closePath(); ctx.fill();
-    };
-    const dot = (cx, cy, col, filled) => {
-      ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, 6.2832);
-      if (filled) { ctx.fillStyle = col; ctx.fill(); } else { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, cell * 0.04); ctx.stroke(); }
-    };
-    ctx.font = '600 12px ' + css('--mono'); ctx.textBaseline = 'middle';
-    for (let b = 0; b < ty; b++) for (let a = 0; a < tx; a++) {
-      const bx = ox + a * pitch, by = oy + b * pitch, bi = base + (n >= 3 ? a * st[2] : 0) + (n >= 4 ? b * st[3] : 0);
-      ctx.fillStyle = C.surface; ctx.fillRect(bx, by, s * cell, s * cell);
-      if (n >= 3 && b === 0) { ctx.fillStyle = C.ax[2]; ctx.textAlign = 'center'; ctx.fillText('z=' + a, bx + s * cell / 2, oy - 10); }
-      if (n >= 4 && a === 0) { ctx.fillStyle = C.ax[3]; ctx.textAlign = 'right'; ctx.fillText('w=' + b, ox - 6, by + s * cell / 2); }
-      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
-        const i = bi + x + y * st[1], px = bx + x * cell, py = by + y * cell, cx = px + cell / 2, cy = py + cell / 2, e = cell * 0.3;
-        if (visited[i]) { ctx.fillStyle = C.trail; ctx.fillRect(px, py, cell, cell); }
-        if (n >= 3) { if (maze.canMove(i, 2, 1)) tri(cx + e, cy, 1, 0, C.ax[2]); if (maze.canMove(i, 2, -1)) tri(cx - e, cy, -1, 0, C.ax[2]); }
-        if (n >= 4) { if (maze.canMove(i, 3, 1)) tri(cx, cy + e, 0, 1, C.ax[3]); if (maze.canMove(i, 3, -1)) tri(cx, cy - e, 0, -1, C.ax[3]); }
-        if (n >= 5) { if (maze.canMove(i, 4, 1)) dot(cx + e, cy + e, C.ax[4], true); if (maze.canMove(i, 4, -1)) dot(cx - e, cy - e, C.ax[4], false); }
-        if (n >= 6) { if (maze.canMove(i, 5, 1)) dot(cx - e, cy + e, C.ax[5], true); if (maze.canMove(i, 5, -1)) dot(cx + e, cy - e, C.ax[5], false); }
-        if (onPath.has(i) && i !== pos) { ctx.fillStyle = C.player; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(cx, cy, cell * 0.09, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+  // ---- small map of the floor you are on
+  function drawMap() {
+    const cvm = $('map'); cvm.hidden = !showMap;
+    if (!showMap) return;
+    const g = cvm.getContext('2d'), S = cvm.width, s = cfg.s, n = cfg.n, st = maze.stride, pad = 14, cell = (S - pad * 2) / s;
+    g.clearRect(0, 0, S, S);
+    const b0 = pos - maze.coord(pos, 0) - maze.coord(pos, 1) * st[1];
+    const SPOT = [0, 0, [0, 0], [-0.28, -0.28], [0.28, -0.28], [0, 0.3]];
+    for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+      const i = b0 + x + y * st[1], px = pad + x * cell, py = pad + y * cell;
+      if (visited[i]) { g.fillStyle = 'rgba(217,58,140,0.2)'; g.fillRect(px, py, cell, cell); }
+      for (let k = 2; k < n; k++) if (maze.canMove(i, k, 1) || maze.canMove(i, k, -1)) {
+        g.fillStyle = AX[k]; g.beginPath(); g.arc(px + cell * (0.5 + SPOT[k][0]), py + cell * (0.5 + SPOT[k][1]), Math.max(2.5, cell * 0.09), 0, 6.3); g.fill();
       }
-      ctx.strokeStyle = C.fg; ctx.lineWidth = wallW; ctx.lineCap = 'round'; ctx.beginPath();
-      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
-        const i = bi + x + y * st[1], px = bx + x * cell, py = by + y * cell;
-        if (x < s - 1 && !maze.canMove(i, 0, 1)) { ctx.moveTo(px + cell, py); ctx.lineTo(px + cell, py + cell); }
-        if (y < s - 1 && !maze.canMove(i, 1, 1)) { ctx.moveTo(px, py + cell); ctx.lineTo(px + cell, py + cell); }
-      }
-      ctx.stroke(); ctx.strokeRect(bx, by, s * cell, s * cell);
+      if (i === goal) { g.fillStyle = '#ffffff'; g.strokeStyle = '#d18a00'; g.lineWidth = 3; g.fillRect(px + cell * 0.36, py + cell * 0.22, cell * 0.28, cell * 0.56); g.strokeRect(px + cell * 0.36, py + cell * 0.22, cell * 0.28, cell * 0.56); }
     }
-    // rings: where a move along z or w would land
-    for (let k = 2; k < Math.min(n, 4); k++) for (const sg of [-1, 1]) if (maze.canMove(pos, k, sg)) {
-      const [cx, cy] = center(pos + sg * st[k]);
-      ctx.strokeStyle = C.ax[k]; ctx.lineWidth = Math.max(1.5, cell * 0.07); ctx.beginPath(); ctx.arc(cx, cy, cell * 0.3, 0, 6.2832); ctx.stroke();
+    g.strokeStyle = '#3a2c58'; g.lineWidth = Math.max(3, cell * 0.08); g.lineCap = 'round'; g.beginPath();
+    for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+      const i = b0 + x + y * st[1], px = pad + x * cell, py = pad + y * cell;
+      if (x < s - 1 && !maze.canMove(i, 0, 1)) { g.moveTo(px + cell, py); g.lineTo(px + cell, py + cell); }
+      if (y < s - 1 && !maze.canMove(i, 1, 1)) { g.moveTo(px, py + cell); g.lineTo(px + cell, py + cell); }
     }
-    if (goal - base >= 0 && goal - base < (n > 4 ? st[4] : maze.total)) {
-      const [cx, cy] = center(goal), g = cell * 0.26;
-      ctx.fillStyle = C.goal; ctx.beginPath(); ctx.moveTo(cx, cy - g); ctx.lineTo(cx + g, cy); ctx.lineTo(cx, cy + g); ctx.lineTo(cx - g, cy); ctx.closePath(); ctx.fill();
-    }
-    const [pcx, pcy] = center(pos);
-    ctx.fillStyle = C.player; ctx.beginPath(); ctx.arc(pcx, pcy, cell * 0.24, 0, 6.2832); ctx.fill();
+    g.stroke(); g.strokeRect(pad, pad, s * cell, s * cell);
+    const a = dirOf() * Math.PI / 2, cx = pad + (maze.coord(pos, 0) + 0.5) * cell, cy = pad + (maze.coord(pos, 1) + 0.5) * cell, r = cell * 0.32;
+    g.fillStyle = '#3a2c58'; g.beginPath();
+    g.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    g.lineTo(cx + Math.cos(a + 2.5) * r, cy + Math.sin(a + 2.5) * r);
+    g.lineTo(cx + Math.cos(a - 2.5) * r, cy + Math.sin(a - 2.5) * r);
+    g.closePath(); g.fill();
   }
 
   // ---- input
-  moveButtons.forEach((b) => b.addEventListener('click', () => move(+b.dataset.axis, +b.dataset.sign)));
-  cv.addEventListener('pointerdown', (ev) => { // tap a neighbouring cell to step into it
-    if (!geo) return;
-    const rc = cv.getBoundingClientRect(), s = cfg.s, n = cfg.n;
-    const ux = ev.clientX - rc.left - geo.ox, uy = ev.clientY - rc.top - geo.oy;
-    const a = Math.floor(ux / geo.pitch), b = Math.floor(uy / geo.pitch);
-    const x = Math.floor((ux - a * geo.pitch) / geo.cell), y = Math.floor((uy - b * geo.pitch) / geo.cell);
-    if (a < 0 || b < 0 || a >= geo.tx || b >= geo.ty || x < 0 || y < 0 || x >= s || y >= s) return;
-    const t = [x, y, a, b];
-    let axis = -1, sign = 0, diffs = 0;
-    for (let k = 0; k < Math.min(n, 4); k++) { const d = t[k] - maze.coord(pos, k); if (d) { diffs++; axis = k; sign = d; } }
-    if (diffs === 1 && Math.abs(sign) === 1) move(axis, sign);
+  moveButtons.forEach((b) => b.addEventListener('click', () => (b.dataset.act ? act(b.dataset.act) : step(+b.dataset.axis, +b.dataset.sign))));
+  let down = null;
+  $('gl').addEventListener('pointerdown', (ev) => { down = [ev.clientX, ev.clientY]; });
+  $('gl').addEventListener('pointerup', (ev) => { // swipe sideways to turn, tap to walk
+    if (!down) return;
+    const dx = ev.clientX - down[0], dy = ev.clientY - down[1]; down = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) act(dx < 0 ? 'r' : 'l');
+    else if (Math.abs(dx) < 12 && Math.abs(dy) < 12) act('f');
   });
-  const KEYS = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [1, -1], ArrowDown: [1, 1], a: [2, -1], d: [2, 1], w: [3, -1], s: [3, 1], q: [4, -1], e: [4, 1], z: [5, -1], c: [5, 1] };
+  const KEYS = { ArrowUp: 'f', ArrowDown: 'b', ArrowLeft: 'l', ArrowRight: 'r', w: 'f', s: 'b', a: 'l', d: 'r',
+    r: [2, 1], f: [2, -1], e: [3, 1], q: [3, -1], c: [4, 1], z: [4, -1], 2: [5, 1], 1: [5, -1] };
   window.addEventListener('keydown', (ev) => {
     const m = KEYS[ev.key.length === 1 ? ev.key.toLowerCase() : ev.key];
     if (!m || ev.target.tagName === 'SELECT') return;
-    ev.preventDefault(); move(m[0], m[1]);
+    ev.preventDefault();
+    if (typeof m === 'string') act(m); else step(m[0], m[1]);
   });
   $('dim').addEventListener('change', () => { cfg.n = +$('dim').value; fillSelects(); build(true); });
   $('size').addEventListener('change', () => { cfg.s = +$('size').value; build(true); });
@@ -370,18 +417,17 @@ function shortestPath(m, from, to) {
   $('restart').addEventListener('click', () => build(false));
   $('winAgain').addEventListener('click', () => build(false));
   $('hint').addEventListener('click', () => { hint = !hint; $('hint').setAttribute('aria-pressed', hint); refresh(); });
-  new ResizeObserver(draw).observe(stage);
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
-  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+  $('mapBtn').addEventListener('click', () => { showMap = !showMap; $('mapBtn').setAttribute('aria-pressed', showMap); drawMap(); });
+  window.addEventListener('resize', resize);
 
   function start(saved) {
     if (saved && saved.cfg) Object.assign(cfg, saved.cfg);
-    fillSelects();
+    fillSelects(); resize();
     build(!(saved && saved.cfg), saved);
+    requestAnimationFrame(frame);
   }
   const hot = window.claude && window.claude.hot;
-  if (hot && hot.snapshot) hot.snapshot(() => ({ cfg, pos, steps, trail: [...visited.keys()].filter((i) => visited[i]) }));
+  if (hot && hot.snapshot) hot.snapshot(() => ({ cfg, pos, steps, face, trail: [...visited.keys()].filter((i) => visited[i]) }));
   if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
 })();
 </script>
