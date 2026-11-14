@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>XD Maze</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
+<style>
+/* Layout: one-screen app. Top bar (settings + readout), the maze fills the middle,
+   two thumb pads sit in the bottom corners. Each extra axis owns one color everywhere. */
+:root {
+  --bg: #e9edf3; --surface: #f8fafc; --line: #c5cdd9; --fg: #18202f; --muted: #5a6577;
+  --trail: #d5e2f7; --player: #1f5fe0; --goal: #c48f00;
+  --ax2: #0a857c; --ax3: #c0334d; --ax4: #7446cf; --ax5: #5f8210;
+  --display: "Space Grotesk", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --body: "Inter", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141c; --surface: #1a202c; --line: #343d4f; --fg: #e4e9f1; --muted: #98a3b6;
+    --trail: #233352; --player: #72a2ff; --goal: #ffd04a;
+    --ax2: #40cfc3; --ax3: #ff8497; --ax4: #b99ef7; --ax5: #b4d458;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141c; --surface: #1a202c; --line: #343d4f; --fg: #e4e9f1; --muted: #98a3b6;
+  --trail: #233352; --player: #72a2ff; --goal: #ffd04a;
+  --ax2: #40cfc3; --ax3: #ff8497; --ax4: #b99ef7; --ax5: #b4d458;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.4 var(--body);
+  display: flex; flex-direction: column; gap: 8px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; overflow: hidden;
+}
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+h1 { font: 600 20px/1 var(--display); margin: 0; letter-spacing: -0.01em; }
+.bar label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+select, .btn {
+  font: 500 14px var(--body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; min-height: 36px; padding: 0 10px;
+}
+.btn[aria-pressed="true"] { background: var(--player); border-color: var(--player); color: var(--bg); }
+:focus-visible { outline: 2px solid var(--player); outline-offset: 2px; }
+.readout { margin-left: auto; display: flex; gap: 14px; font: 400 13px var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.readout b { color: var(--fg); font-weight: 600; }
+.help { margin: 0; color: var(--muted); font-size: 12px; }
+.stage { position: relative; flex: 1 1 0; min-height: 120px; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.win {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent); text-align: center;
+}
+.win p { margin: 0; font: 600 22px var(--display); }
+.win small { font: 400 14px var(--mono); color: var(--muted); }
+.win div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.pad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
+.pad span { display: grid; place-items: center; font: 600 12px var(--mono); color: var(--muted); }
+.extra { display: grid; grid-template-columns: repeat(2, 60px); gap: 4px; }
+.mv {
+  --c: var(--fg);
+  font: 600 18px var(--mono); color: var(--c); background: var(--surface);
+  border: 2px solid var(--c); border-radius: 8px; min-height: 52px; padding: 0;
+}
+.mv:disabled { opacity: 0.22; }
+.mv.next { background: var(--c); color: var(--bg); }
+.mv[data-axis="2"] { --c: var(--ax2); } .mv[data-axis="3"] { --c: var(--ax3); }
+.mv[data-axis="4"] { --c: var(--ax4); } .mv[data-axis="5"] { --c: var(--ax5); }
+@media (max-width: 520px) {
+  .controls { flex-wrap: nowrap; }
+  .pad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); }
+  .extra { grid-template-columns: repeat(2, 44px); }
+  .mv { min-height: 40px; font-size: 15px; }
+}
+@media (max-height: 520px) { .pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); } .mv { min-height: 44px; } .help { display: none; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>XD Maze</h1>
+  <label for="dim">次元<select id="dim"></select></label>
+  <label for="size">一辺<select id="size"></select></label>
+  <label for="algo">生成<select id="algo"><option value="dfs">DFS(長い道)</option><option value="wilson">Wilson(偏りなし)</option></select></label>
+  <button class="btn" id="new" type="button">新しい迷路</button>
+  <button class="btn" id="restart" type="button">最初から</button>
+  <button class="btn" id="hint" type="button" aria-pressed="false">ヒント</button>
+  <div class="readout"><span>位置 <b id="coord"></b></span><span>手数 <b id="steps">0</b></span><span>最短 <b id="best">0</b></span></div>
+</div>
+<p class="help" id="help"></p>
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <div class="win" id="win" hidden>
+    <p>ゴール</p>
+    <small id="winText"></small>
+    <div><button class="btn" id="winNew" type="button">次の迷路</button><button class="btn" id="winAgain" type="button">同じ迷路をもう一度</button></div>
+  </div>
+</div>
+<div class="controls">
+  <div class="pad" id="padA">
+    <span></span><button class="mv" id="m1n" type="button" data-axis="1" data-sign="-1" aria-label="y−">↑</button><span></span>
+    <button class="mv" id="m0n" type="button" data-axis="0" data-sign="-1" aria-label="x−">←</button><span>x y</span><button class="mv" id="m0p" type="button" data-axis="0" data-sign="1" aria-label="x+">→</button>
+    <span></span><button class="mv" id="m1p" type="button" data-axis="1" data-sign="1" aria-label="y+">↓</button><span></span>
+  </div>
+  <div class="extra" id="extra">
+    <button class="mv" id="m4n" type="button" data-axis="4" data-sign="-1">v−</button><button class="mv" id="m4p" type="button" data-axis="4" data-sign="1">v+</button>
+    <button class="mv" id="m5n" type="button" data-axis="5" data-sign="-1">u−</button><button class="mv" id="m5p" type="button" data-axis="5" data-sign="1">u+</button>
+  </div>
+  <div class="pad" id="padB">
+    <span></span><button class="mv" id="m3n" type="button" data-axis="3" data-sign="-1" aria-label="w−">↑</button><span></span>
+    <button class="mv" id="m2n" type="button" data-axis="2" data-sign="-1" aria-label="z−">←</button><span id="padBLabel">z w</span><button class="mv" id="m2p" type="button" data-axis="2" data-sign="1" aria-label="z+">→</button>
+    <span></span><button class="mv" id="m3p" type="button" data-axis="3" data-sign="1" aria-label="w+">↓</button><span></span>
+  </div>
+</div>
+
+<script id="core">
+// Dimension-independent core. A maze is a spanning tree of the N-dimensional grid graph.
+// open[i] bit k set = passage between cell i and the next cell along axis k.
+function mulberry32(a) {
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function createMaze(sizes, seed, algo) {
+  const n = sizes.length, stride = [];
+  let total = 1;
+  for (let k = 0; k < n; k++) { stride.push(total); total *= sizes[k]; }
+  const open = new Uint8Array(total), rnd = mulberry32(seed);
+  const coord = (i, k) => Math.floor(i / stride[k]) % sizes[k];
+  const inGrid = (i, k, s) => { const c = coord(i, k) + s; return c >= 0 && c < sizes[k]; };
+  const canMove = (i, k, s) => inGrid(i, k, s) && (open[s > 0 ? i : i - stride[k]] >> k & 1) === 1;
+  const carve = (i, k, s) => { open[s > 0 ? i : i - stride[k]] |= 1 << k; };
+  const m = { n, sizes, stride, total, open, coord, canMove };
+  const seen = new Uint8Array(total);
+
+  if (algo === 'wilson') {
+    // Loop-erased random walks: samples uniformly from all spanning trees.
+    const dir = new Uint8Array(total);
+    seen[Math.floor(rnd() * total)] = 1;
+    for (let start = 0; start < total; start++) {
+      let c = start;
+      while (!seen[c]) {
+        let d;
+        do { d = Math.floor(rnd() * 2 * n); } while (!inGrid(c, d >> 1, d & 1 ? 1 : -1));
+        dir[c] = d;
+        c += (d & 1 ? 1 : -1) * stride[d >> 1];
+      }
+      c = start;
+      while (!seen[c]) {
+        const d = dir[c], k = d >> 1, s = d & 1 ? 1 : -1;
+        seen[c] = 1; carve(c, k, s); c += s * stride[k];
+      }
+    }
+  } else {
+    // Randomized depth-first search with an explicit stack.
+    const stack = [0], opts = [];
+    seen[0] = 1;
+    while (stack.length) {
+      const c = stack[stack.length - 1];
+      opts.length = 0;
+      for (let d = 0; d < 2 * n; d++) {
+        const k = d >> 1, s = d & 1 ? 1 : -1;
+        if (inGrid(c, k, s) && !seen[c + s * stride[k]]) opts.push(d);
+      }
+      if (!opts.length) { stack.pop(); continue; }
+      const d = opts[Math.floor(rnd() * opts.length)], k = d >> 1, s = d & 1 ? 1 : -1;
+      carve(c, k, s); seen[c + s * stride[k]] = 1; stack.push(c + s * stride[k]);
+    }
+  }
+  return m;
+}
+// Breadth-first search. Returns the list of cells from `from` to `to`, both included.
+function shortestPath(m, from, to) {
+  const prev = new Int32Array(m.total).fill(-1), queue = [from];
+  prev[from] = from;
+  for (let h = 0; h < queue.length; h++) {
+    const c = queue[h];
+    if (c === to) break;
+    for (let k = 0; k < m.n; k++) for (const s of [-1, 1]) {
+      const nb = c + s * m.stride[k];
+      if (m.canMove(c, k, s) && prev[nb] < 0) { prev[nb] = c; queue.push(nb); }
+    }
+  }
+  if (prev[to] < 0) return null;
+  const path = [to];
+  while (path[path.length - 1] !== from) path.push(prev[path[path.length - 1]]);
+  return path.reverse();
+}
+</script>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const NAMES = ['x', 'y', 'z', 'w', 'v', 'u'];
+  const MAX_SIZE = { 2: 16, 3: 8, 4: 6, 5: 4, 6: 3 };
+  const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+  const moveButtons = [...document.querySelectorAll('.mv')];
+  let cfg = { n: 4, s: 4, algo: 'dfs', seed: 0 };
+  let maze, pos, goal, steps, visited, best, hint = false, path = null, geo = null;
+
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('xdmaze') || '{}')); } catch (e) {}
+  if (!MAX_SIZE[cfg.n]) cfg.n = 4;
+
+  function fillSelects() {
+    $('dim').innerHTML = [2, 3, 4, 5, 6].map((d) => `<option value="${d}">${d}次元</option>`).join('');
+    $('dim').value = cfg.n;
+    cfg.s = Math.max(2, Math.min(cfg.s, MAX_SIZE[cfg.n]));
+    let h = '';
+    for (let s = 2; s <= MAX_SIZE[cfg.n]; s++) h += `<option value="${s}">${s}</option>`;
+    $('size').innerHTML = h; $('size').value = cfg.s; $('algo').value = cfg.algo;
+  }
+
+  function build(newSeed, saved) {
+    if (newSeed) cfg.seed = (Math.random() * 4294967296) >>> 0;
+    try { localStorage.setItem('xdmaze', JSON.stringify({ n: cfg.n, s: cfg.s, algo: cfg.algo })); } catch (e) {}
+    maze = createMaze(Array(cfg.n).fill(cfg.s), cfg.seed, cfg.algo);
+    goal = maze.total - 1;
+    best = shortestPath(maze, 0, goal).length - 1;
+    visited = new Uint8Array(maze.total);
+    pos = 0; steps = 0;
+    if (saved && saved.pos < maze.total) { pos = saved.pos; steps = saved.steps; (saved.trail || []).forEach((i) => { visited[i] = 1; }); }
+    visited[pos] = 1;
+    $('padB').hidden = cfg.n < 3;
+    $('m3n').hidden = $('m3p').hidden = cfg.n < 4;
+    $('padBLabel').textContent = cfg.n < 4 ? 'z' : 'z w';
+    $('extra').hidden = cfg.n < 5;
+    $('m5n').hidden = $('m5p').hidden = cfg.n < 6;
+    $('help').textContent = cfg.n < 3 ? '青い丸を金色のゴールまで動かす。'
+      : '盤面は' + (cfg.n > 3 ? ' z(横)と w(縦)' : ' z ') + 'の方向に並んでいる。マスの中の色つきの印は、その方向の隣の盤面の同じマスへ行けるという意味。'
+        + (cfg.n > 4 ? ' v' + (cfg.n > 5 ? '・u' : '') + ' は今いる層だけを表示している。' : '');
+    refresh();
+  }
+
+  function refresh() {
+    path = hint ? shortestPath(maze, pos, goal) : null;
+    const next = path && path.length > 1 ? path[1] - pos : 0;
+    for (const b of moveButtons) {
+      const k = +b.dataset.axis, s = +b.dataset.sign;
+      b.disabled = k >= cfg.n || !maze.canMove(pos, k, s);
+      b.classList.toggle('next', next !== 0 && k < cfg.n && next === s * maze.stride[k]);
+    }
+    const c = [];
+    for (let k = 0; k < cfg.n; k++) c.push(maze.coord(pos, k));
+    $('coord').textContent = '(' + c.join(',') + ')';
+    $('steps').textContent = steps; $('best').textContent = best;
+    const won = pos === goal;
+    $('win').hidden = !won;
+    if (won) $('winText').textContent = steps + ' 手で到達(最短 ' + best + ' 手)';
+    draw();
+  }
+
+  function move(k, s) {
+    if (pos === goal || k >= cfg.n || !maze.canMove(pos, k, s)) return;
+    pos += s * maze.stride[k]; steps++; visited[pos] = 1;
+    refresh();
+  }
+
+  // ---- drawing: a grid of 2D boards. x,y inside a board; z,w choose the board; v,u fixed at the player's layer.
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  function draw() {
+    const dpr = window.devicePixelRatio || 1, W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H || !maze) return;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const n = cfg.n, s = cfg.s, st = maze.stride;
+    const tx = n >= 3 ? s : 1, ty = n >= 4 ? s : 1, GAP = 0.7;
+    const ml = n >= 4 ? 34 : 2, mt = n >= 3 ? 20 : 2;
+    const cell = Math.max(4, Math.floor(Math.min((W - ml - 2) / (tx * s + (tx - 1) * GAP), (H - mt - 2) / (ty * s + (ty - 1) * GAP))));
+    const pitch = (s + GAP) * cell;
+    const ox = ml + Math.floor((W - ml - (tx * s + (tx - 1) * GAP) * cell) / 2);
+    const oy = mt + Math.floor((H - mt - (ty * s + (ty - 1) * GAP) * cell) / 2);
+    let base = 0;
+    for (let k = 4; k < n; k++) base += maze.coord(pos, k) * st[k];
+    geo = { cell, pitch, ox, oy, tx, ty, base };
+    const C = { fg: css('--fg'), surface: css('--surface'), trail: css('--trail'), player: css('--player'), goal: css('--goal'), muted: css('--muted'),
+      ax: [0, 0, css('--ax2'), css('--ax3'), css('--ax4'), css('--ax5')] };
+    const wallW = Math.max(1.5, cell * 0.09), r = cell * 0.17;
+    const onPath = new Set(path || []);
+    const center = (i) => {
+      const bx = ox + (n >= 3 ? maze.coord(i, 2) : 0) * pitch, by = oy + (n >= 4 ? maze.coord(i, 3) : 0) * pitch;
+      return [bx + (maze.coord(i, 0) + 0.5) * cell, by + (maze.coord(i, 1) + 0.5) * cell];
+    };
+    const tri = (cx, cy, dx, dy, col) => { // small arrowhead pointing (dx,dy)
+      ctx.fillStyle = col; ctx.beginPath();
+      ctx.moveTo(cx + dx * r, cy + dy * r);
+      ctx.lineTo(cx - dx * r * 0.5 + dy * r * 0.8, cy - dy * r * 0.5 + dx * r * 0.8);
+      ctx.lineTo(cx - dx * r * 0.5 - dy * r * 0.8, cy - dy * r * 0.5 - dx * r * 0.8);
+      ctx.closePath(); ctx.fill();
+    };
+    const dot = (cx, cy, col, filled) => {
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, 6.2832);
+      if (filled) { ctx.fillStyle = col; ctx.fill(); } else { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, cell * 0.04); ctx.stroke(); }
+    };
+    ctx.font = '600 12px ' + css('--mono'); ctx.textBaseline = 'middle';
+    for (let b = 0; b < ty; b++) for (let a = 0; a < tx; a++) {
+      const bx = ox + a * pitch, by = oy + b * pitch, bi = base + (n >= 3 ? a * st[2] : 0) + (n >= 4 ? b * st[3] : 0);
+      ctx.fillStyle = C.surface; ctx.fillRect(bx, by, s * cell, s * cell);
+      if (n >= 3 && b === 0) { ctx.fillStyle = C.ax[2]; ctx.textAlign = 'center'; ctx.fillText('z=' + a, bx + s * cell / 2, oy - 10); }
+      if (n >= 4 && a === 0) { ctx.fillStyle = C.ax[3]; ctx.textAlign = 'right'; ctx.fillText('w=' + b, ox - 6, by + s * cell / 2); }
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+        const i = bi + x + y * st[1], px = bx + x * cell, py = by + y * cell, cx = px + cell / 2, cy = py + cell / 2, e = cell * 0.3;
+        if (visited[i]) { ctx.fillStyle = C.trail; ctx.fillRect(px, py, cell, cell); }
+        if (n >= 3) { if (maze.canMove(i, 2, 1)) tri(cx + e, cy, 1, 0, C.ax[2]); if (maze.canMove(i, 2, -1)) tri(cx - e, cy, -1, 0, C.ax[2]); }
+        if (n >= 4) { if (maze.canMove(i, 3, 1)) tri(cx, cy + e, 0, 1, C.ax[3]); if (maze.canMove(i, 3, -1)) tri(cx, cy - e, 0, -1, C.ax[3]); }
+        if (n >= 5) { if (maze.canMove(i, 4, 1)) dot(cx + e, cy + e, C.ax[4], true); if (maze.canMove(i, 4, -1)) dot(cx - e, cy - e, C.ax[4], false); }
+        if (n >= 6) { if (maze.canMove(i, 5, 1)) dot(cx - e, cy + e, C.ax[5], true); if (maze.canMove(i, 5, -1)) dot(cx + e, cy - e, C.ax[5], false); }
+        if (onPath.has(i) && i !== pos) { ctx.fillStyle = C.player; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(cx, cy, cell * 0.09, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; }
+      }
+      ctx.strokeStyle = C.fg; ctx.lineWidth = wallW; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+        const i = bi + x + y * st[1], px = bx + x * cell, py = by + y * cell;
+        if (x < s - 1 && !maze.canMove(i, 0, 1)) { ctx.moveTo(px + cell, py); ctx.lineTo(px + cell, py + cell); }
+        if (y < s - 1 && !maze.canMove(i, 1, 1)) { ctx.moveTo(px, py + cell); ctx.lineTo(px + cell, py + cell); }
+      }
+      ctx.stroke(); ctx.strokeRect(bx, by, s * cell, s * cell);
+    }
+    // rings: where a move along z or w would land
+    for (let k = 2; k < Math.min(n, 4); k++) for (const sg of [-1, 1]) if (maze.canMove(pos, k, sg)) {
+      const [cx, cy] = center(pos + sg * st[k]);
+      ctx.strokeStyle = C.ax[k]; ctx.lineWidth = Math.max(1.5, cell * 0.07); ctx.beginPath(); ctx.arc(cx, cy, cell * 0.3, 0, 6.2832); ctx.stroke();
+    }
+    if (goal - base >= 0 && goal - base < (n > 4 ? st[4] : maze.total)) {
+      const [cx, cy] = center(goal), g = cell * 0.26;
+      ctx.fillStyle = C.goal; ctx.beginPath(); ctx.moveTo(cx, cy - g); ctx.lineTo(cx + g, cy); ctx.lineTo(cx, cy + g); ctx.lineTo(cx - g, cy); ctx.closePath(); ctx.fill();
+    }
+    const [pcx, pcy] = center(pos);
+    ctx.fillStyle = C.player; ctx.beginPath(); ctx.arc(pcx, pcy, cell * 0.24, 0, 6.2832); ctx.fill();
+  }
+
+  // ---- input
+  moveButtons.forEach((b) => b.addEventListener('click', () => move(+b.dataset.axis, +b.dataset.sign)));
+  cv.addEventListener('pointerdown', (ev) => { // tap a neighbouring cell to step into it
+    if (!geo) return;
+    const rc = cv.getBoundingClientRect(), s = cfg.s, n = cfg.n;
+    const ux = ev.clientX - rc.left - geo.ox, uy = ev.clientY - rc.top - geo.oy;
+    const a = Math.floor(ux / geo.pitch), b = Math.floor(uy / geo.pitch);
+    const x = Math.floor((ux - a * geo.pitch) / geo.cell), y = Math.floor((uy - b * geo.pitch) / geo.cell);
+    if (a < 0 || b < 0 || a >= geo.tx || b >= geo.ty || x < 0 || y < 0 || x >= s || y >= s) return;
+    const t = [x, y, a, b];
+    let axis = -1, sign = 0, diffs = 0;
+    for (let k = 0; k < Math.min(n, 4); k++) { const d = t[k] - maze.coord(pos, k); if (d) { diffs++; axis = k; sign = d; } }
+    if (diffs === 1 && Math.abs(sign) === 1) move(axis, sign);
+  });
+  const KEYS = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [1, -1], ArrowDown: [1, 1], a: [2, -1], d: [2, 1], w: [3, -1], s: [3, 1], q: [4, -1], e: [4, 1], z: [5, -1], c: [5, 1] };
+  window.addEventListener('keydown', (ev) => {
+    const m = KEYS[ev.key.length === 1 ? ev.key.toLowerCase() : ev.key];
+    if (!m || ev.target.tagName === 'SELECT') return;
+    ev.preventDefault(); move(m[0], m[1]);
+  });
+  $('dim').addEventListener('change', () => { cfg.n = +$('dim').value; fillSelects(); build(true); });
+  $('size').addEventListener('change', () => { cfg.s = +$('size').value; build(true); });
+  $('algo').addEventListener('change', () => { cfg.algo = $('algo').value; build(true); });
+  $('new').addEventListener('click', () => build(true));
+  $('winNew').addEventListener('click', () => build(true));
+  $('restart').addEventListener('click', () => build(false));
+  $('winAgain').addEventListener('click', () => build(false));
+  $('hint').addEventListener('click', () => { hint = !hint; $('hint').setAttribute('aria-pressed', hint); refresh(); });
+  new ResizeObserver(draw).observe(stage);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  function start(saved) {
+    if (saved && saved.cfg) Object.assign(cfg, saved.cfg);
+    fillSelects();
+    build(!(saved && saved.cfg), saved);
+  }
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(() => ({ cfg, pos, steps, trail: [...visited.keys()].filter((i) => visited[i]) }));
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
