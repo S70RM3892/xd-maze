@@ -74,7 +74,7 @@ h1 { font: italic 600 26px/1 var(--display); margin: 0; text-shadow: 0 0 12px #f
   <span class="pill">距離 <b id="dist">0</b> m</span>
   <span class="pill">速度 <b id="speed">0</b></span>
   <span class="pill" id="timePill">残り <b id="time">30.0</b> 秒</span>
-  <span class="pill legend"><i class="w">赤い道</i> スティック上 / <i class="c">青い道</i> スティック下</span>
+  <span class="pill legend"><i class="w">赤く浮く輪</i> スティック上 / <i class="c">青く沈む輪</i> スティック下</span>
 </div>
 <div class="mid">
   <p id="caption"></p>
@@ -91,8 +91,10 @@ h1 { font: italic 600 26px/1 var(--display); margin: 0; text-shadow: 0 0 12px #f
     <p>4 次元の道は、左右だけでなく 4 つ目の方向にも曲がる。道の断面は線ではなく円で、はみ出せる方向が 2 つある。</p>
     <ul>
       <li>ふつうの色の道が、いま走っている向きの道。</li>
-      <li>道が細くなって<span class="w"><b>赤い道</b></span>が見えたら、道は 4 つ目の方向へ逃げている。スティックを<b>上</b>へ。</li>
-      <li><span class="c"><b>青い道</b></span>ならスティックを<b>下</b>へ。左右はふつうのハンドル。</li>
+      <li>輪は道の断面、線は道の中心。道がまっすぐなら輪は道を囲み、線は路面の中央に重なる。</li>
+      <li>この先の輪と線が<span class="w"><b>赤く浮き上がって</b></span>見えたら、道は 4 つ目の方向の片側へ曲がっている。スティックを<b>上</b>へ。</li>
+      <li><span class="c"><b>青く沈んで</b></span>見えたら反対側。スティックを<b>下</b>へ。左右はふつうのハンドル。</li>
+      <li>要するに、輪の真ん中をくぐり続ければ道の上にいる。</li>
       <li>右上の丸は道の断面。輪の中に自分の点を入れておく。点線の輪はこの先の道。</li>
       <li>アクセルは自動。浮かぶ目玉の下を道の上で通ると時間が延びる。</li>
     </ul>
@@ -114,13 +116,13 @@ void main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2
 <script id="fs" type="x-shader/x-fragment">#version 300 es
 precision highp float;
 // A 4D eye has a 3D retina: left-right, up-down, ana-kata. The screen shows the middle
-// ana-kata layer as it is and folds the other layers into color: warm toward ana, cool toward kata.
+// ana-kata layer as it is and draws the ana-kata axis as height over it: warm and up toward ana, cool and down toward kata.
 // The ground is a 3D space (x, y, z here) and height is the fourth axis. The road is a tube in the ground.
 uniform vec2 uRes;
 uniform vec3 uPos, uF, uR, uA;
 uniform float uTan, uTime, uShake;
 out vec4 o;
-const float VS = 0.2, BOT = -0.6, RW = 1.7;
+const float LIFT = 1.0, BOT = -0.6, RW = 1.7;
 const vec3 WARM = vec3(1.0, 0.22, 0.4), COOL = vec3(0.12, 0.48, 1.0), FOG = vec3(0.99, 0.88, 0.95);
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -157,7 +159,7 @@ vec3 sky(vec3 d, float yv) {
 // nearest roadside pole or checkpoint eye along the ray
 bool things(vec3 d, float yv, out vec3 col) {
   float best = 1e9, A = dot(d, d), n0 = floor(uPos.x / 12.0); bool hit = false;
-  for (int i = -1; i < 6; i++) {
+  for (int i = 0; i < 6; i++) {
     float n = n0 + float(i), xn = n * 12.0; vec2 cc = C(xn), e = mod(n, 2.0) < 0.5 ? vec2(1, 0) : vec2(0, 1);
     for (int sd = -1; sd <= 1; sd += 2) {
       vec3 oc = uPos - vec3(xn, cc + e * float(sd) * (RW + 0.7));
@@ -193,20 +195,32 @@ void main() {
   vec2 ndc = gl_FragCoord.xy / uRes * 2.0 - 1.0;
   float u = ndc.x * uTan, yv = ndc.y * uTan * uRes.y / uRes.x + uShake;
   vec3 d0 = uF + u * uR, c, tc;
-  float tg = yv < 0.0 ? BOT / yv : 1e9, on0 = 0.0;
-  if (yv < 0.0) { vec3 p = uPos + d0 * tg; c = ground(p, tg); on0 = roadD(p) < RW ? 1.0 : 0.0; } else c = sky(d0, yv);
+  if (yv < 0.0) c = ground(uPos + d0 * (BOT / yv), BOT / yv); else c = sky(d0, yv);
   if (things(d0, yv, tc)) c = tc;
-  for (int s = 3; s >= 1; s--) for (int sg = -1; sg <= 1; sg += 2) {
-    vec3 di = d0 + float(s * sg) * VS * uA, tint = sg > 0 ? WARM : COOL;
-    if (yv < 0.0) {   // the road as that layer sees it: outline, centre line, and a faint fill where the middle layer has none
-      float d = roadD(uPos + di * tg), th = 0.03 + 0.02 * tg;
-      float line = 1.0 - smoothstep(th * 0.5, th, abs(d - RW));
-      float mid = 1.0 - smoothstep(th * 0.8, th * 1.6, d);
-      float fill = d < RW ? 1.0 - on0 : 0.0;
-      float la = s == 1 ? 0.7 : s == 2 ? 0.5 : 0.34, fa = s == 1 ? 0.3 : s == 2 ? 0.2 : 0.12;
-      c = mix(c, tint, clamp(max(line, mid) * la + fill * fa, 0.0, 1.0) * exp(-tg * 0.03));
+  // The ana-kata axis of the retina is drawn as screen height, on top of the real picture:
+  // a point of the ground that sits w toward ana is lifted by LIFT * w / depth (kata: lowered).
+  // So each pixel is also a ray through the 3D ground, and along it we look for the road:
+  // hoops (the round cross-section of the road) and a rail along its centre line.
+  // Where the road lies in the layer you are facing, both sit exactly on the painted road.
+  vec3 O = uPos - (BOT / LIFT) * uA, D = d0 + (yv / LIFT) * uA;
+  float n1 = floor(O.x / 12.0) + 8.0;
+  if (D.x > 0.001) for (int i = 0; i < 8; i++) {                 // hoops, far to near
+    float xn = (n1 - float(i)) * 12.0, t = (xn - O.x) / D.x;
+    if (t < 1.5) continue;
+    vec3 q = O + D * t; float w = (yv * t - BOT) / LIFT, gate = mod(xn, 96.0) < 0.5 ? 1.0 : 0.0;
+    float ring = abs(length(q.yz - C(xn)) - RW), th = (0.05 + 0.011 * t) * (1.0 + gate);
+    vec3 tint = mix(vec3(1.0), w > 0.0 ? WARM : COOL, smoothstep(0.1, 0.9, abs(w)));
+    c = mix(c, mix(tint, vec3(1.0, 0.8, 0.2), gate * 0.6), (1.0 - smoothstep(th * 0.6, th, ring)) * 0.9 * exp(-t * 0.012));
+  }
+  float t = 2.0;
+  for (int i = 0; i < 44; i++) {                                 // rail: march until the ray touches the centre line
+    float w = (yv * t - BOT) / LIFT, d = roadD(O + D * t) - (0.07 + 0.006 * t);
+    if (d < 0.0) {
+      c = mix(c, w > 0.0 ? WARM : COOL, smoothstep(0.25, 1.0, abs(w)) * 0.95 * exp(-t * 0.012));
+      break;
     }
-    if (things(di, yv, tc)) c = mix(c, mix(tint, tc, 0.3), s == 1 ? 0.6 : s == 2 ? 0.42 : 0.28);
+    t += max(d * 0.7, 0.06);
+    if (t > 110.0) break;
   }
   float rad = length(ndc);
   c = mix(c, vec3(1.0, 0.96, 0.99), smoothstep(0.75, 1.5, rad) * 0.55);
@@ -373,7 +387,7 @@ void main() {
   window.addEventListener('resize', resize);
 
   place(40); resize();
-  window.__xd = { P, off, get speed() { return speed; }, get time() { return time; }, set time(v) { time = v; }, get mode() { return mode; }, steer };
+  window.__xd = { P, off, place, get speed() { return speed; }, get time() { return time; }, set time(v) { time = v; }, get mode() { return mode; }, steer };
   requestAnimationFrame(frame);
 })();
 </script>
